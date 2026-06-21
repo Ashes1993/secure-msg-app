@@ -37,6 +37,7 @@ jobs:
 
       - name: Compile Next.js Production Build
         run: npm run build
+        working-directory: ./client
         env:
           DATABASE_URL: "postgresql://mock_user:mock_password@localhost:5432/mock_db?schema=public"
           DIRECT_URL: "postgresql://mock_user:mock_password@localhost:5432/mock_db?schema=public"
