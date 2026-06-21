@@ -5,10 +5,12 @@ on:
     branches: [master, main]
     paths:
       - "client/**"
+      - ".github/workflows/client.yml"
   pull_request:
     branches: [master, main]
     paths:
       - "client/**"
+      - ".github/workflows/client.yml"
 jobs:
   verify-client:
     name: Lint, Typecheck, and Build Frontend
