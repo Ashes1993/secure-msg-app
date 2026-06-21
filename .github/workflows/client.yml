@@ -1,0 +1,39 @@
+name: Client Continuos Integration
+
+on:
+  push:
+    branches: [master, main]
+    paths:
+      - "client/**"
+  pull_request:
+    branches: [master, main]
+    paths:
+      - "client/**"
+jobs:
+  verify-client:
+    name: Lint, Typecheck, and Build Frontend
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: ./client
+
+    steps:
+      - name: Checkout Repository Source Code
+        uses: actions/checkout@v4
+
+      - name: Initialize Node.js Environment
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: "npm"
+          cache-dependency-path: ./client/package-lock.json
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Execute Code Linting
+        run: npm run lint
+
+      - name: Compile Next.js Production Build
+        run: npm run build
