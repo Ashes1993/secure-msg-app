@@ -2,11 +2,14 @@
 
 import bcrypt from "bcryptjs";
 import prisma from "@/lib/prisma";
+import { signIn } from "@/auth";
+import { AuthError } from "next-auth";
 
 type FormData = {
   username: string;
   password: string;
   publicKey: string;
+  encryptedPrivateKey: string;
 };
 
 interface ActionResponse {
@@ -17,9 +20,9 @@ interface ActionResponse {
 export async function registerUser(
   formData: FormData,
 ): Promise<ActionResponse> {
-  const { username, password, publicKey } = formData;
+  const { username, password, publicKey, encryptedPrivateKey } = formData;
 
-  if (!username || !password || !publicKey) {
+  if (!username || !password || !publicKey || !encryptedPrivateKey) {
     return { success: false, error: "The input values cannot be empty!" };
   }
 
@@ -46,6 +49,7 @@ export async function registerUser(
         username,
         password: hashedPassword,
         publicKey,
+        encryptedPrivateKey,
       },
     });
 
@@ -58,5 +62,32 @@ export async function registerUser(
       error:
         "An unexpected database error occurred while creating the account!",
     };
+  }
+}
+
+export async function loginUser(
+  username: string,
+  password: string,
+): Promise<ActionResponse> {
+  if (!username || !password) {
+    return {
+      success: false,
+      error: "The username or password values cannot be empty!",
+    };
+  }
+
+  try {
+    await signIn("credentials", {
+      username,
+      password,
+      redirect: false,
+    });
+
+    return { success: true };
+  } catch (error) {
+    if (error instanceof AuthError) {
+      return { success: false, error: "Invalid username or password." };
+    }
+    throw error;
   }
 }
