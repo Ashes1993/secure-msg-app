@@ -17,6 +17,7 @@ model User {
   username  String  @unique
   password  String
   publicKey String 
+  encryptedPrivateKey String
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 
