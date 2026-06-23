@@ -26,6 +26,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             username: true,
             password: true,
             publicKey: true,
+            encryptedPrivateKey: true,
           },
         });
 
@@ -46,6 +47,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           id: user.id,
           username: user.username,
           publicKey: user.publicKey,
+          encryptedPrivateKey: user.encryptedPrivateKey,
         };
       },
     }),
@@ -57,6 +59,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         token.id = user.id;
         token.username = user.username;
         token.publicKey = user.publicKey;
+        token.encryptedPrivateKey = user.encryptedPrivateKey;
       }
       return token;
     },
@@ -65,6 +68,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         session.user.id = token.id as string;
         session.user.username = token.username as string;
         session.user.publicKey = token.publicKey as string;
+        session.user.encryptedPrivateKey = token.encryptedPrivateKey as string;
       }
       return session;
     },

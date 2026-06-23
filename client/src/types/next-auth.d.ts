@@ -4,12 +4,14 @@ declare module "next-auth" {
   interface User {
     username: string;
     publicKey: string;
+    encryptedPrivateKey: string;
   }
   interface Session {
     user: {
       id: string;
       username: string;
       publicKey: string;
+      encryptedPrivateKey: string;
     } & DefaultSession["user"];
   }
 }
@@ -19,5 +21,6 @@ declare module "next-auth/jwt" {
     id: string;
     username: string;
     publicKey: string;
+    encryptedPrivateKey: string;
   }
 }
