@@ -2,8 +2,10 @@
 
 import { useState, useEffect } from "react";
 import { registerUser } from "@/actions/auth";
+import { generateE2EKeys } from "@/lib/crypto";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { Loader2 } from "lucide-react";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -11,6 +13,7 @@ export default function RegisterPage() {
   const [username, setUsername] = useState<string>("");
   const [password, setPassword] = useState<string>("");
   const [confirmPassword, setConfirmPassword] = useState<string>("");
+  const [isLoading, setIsLoading] = useState<boolean>(false);
   const [errorStatus, setErrorStatus] = useState<string>("");
 
   useEffect(() => {
@@ -21,39 +24,12 @@ export default function RegisterPage() {
     }, 5000);
 
     return () => clearTimeout(timer);
-  });
-
-  // Browser-side key generation
-  const generateE2EKeys = async () => {
-    const keyPair = await window.crypto.subtle.generateKey(
-      {
-        name: "RSA-OAEP",
-        modulusLength: 2048,
-        publicExponent: new Uint8Array([1, 0, 1]),
-        hash: "SHA-256",
-      },
-      true,
-      ["encrypt", "decrypt"],
-    );
-
-    // Convert the raw key buffer into a standard stringified JSON web key
-    const exportedPublicKey = await window.crypto.subtle.exportKey(
-      "jwk",
-      keyPair.publicKey,
-    );
-    const exportedPrivateKey = await window.crypto.subtle.exportKey(
-      "jwk",
-      keyPair.privateKey,
-    );
-
-    localStorage.setItem("msg_private_key", JSON.stringify(exportedPrivateKey));
-
-    return JSON.stringify(exportedPublicKey);
-  };
+  }, [errorStatus]);
 
   const handleSubmit = async (event: React.SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
     setErrorStatus("");
+    setIsLoading(true);
 
     const usernameRegex = /^[a-zA-Z0-9_]{3,20}$/;
 
@@ -75,11 +51,19 @@ export default function RegisterPage() {
     }
 
     try {
-      const publicKey = await generateE2EKeys();
-      const action = await registerUser({ username, password, publicKey });
+      const { publicKey, encryptedPrivateKey } =
+        await generateE2EKeys(password);
+
+      const action = await registerUser({
+        username,
+        password,
+        publicKey,
+        encryptedPrivateKey,
+      });
 
       if (action.success) {
-        router.push("/signin");
+        setIsLoading(false);
+        router.push("/login");
       } else {
         setErrorStatus(
           action.error || "An error occurred during account creation.",
@@ -157,9 +141,14 @@ export default function RegisterPage() {
 
       <button
         type="submit"
-        className="py-2 text-background rounded-xl font-medium w-full bg-primary hover:bg-primary-hover shadow-sm shadow-emerald-900/10 active:scale-[0.98] transition"
+        className="py-2 text-background rounded-xl font-medium w-full bg-primary hover:bg-primary-hover shadow-sm shadow-emerald-900/10 active:scale-[0.98] transitio-all duration-200 disabled:opacity-70 disabled:pointer-events-none flex items-center justify-center "
+        disabled={isLoading}
       >
-        Create Account
+        {isLoading ? (
+          <Loader2 className="h-4 w-4 animate-spin" />
+        ) : (
+          "Create Account"
+        )}
       </button>
       {errorStatus && (
         <div
@@ -172,10 +161,10 @@ export default function RegisterPage() {
       <p className="text-sm text-foreground text-center">
         Already have an account?{" "}
         <Link
-          href="/signin"
+          href="/login"
           className="font-medium text-primary hover:underline underline-offset-4"
         >
-          Sign in
+          Login
         </Link>
       </p>
     </form>
