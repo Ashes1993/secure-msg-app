@@ -1,5 +1,6 @@
 interface E2EKeyPairPayload {
   publicKey: string;
+  privateKey: string;
   encryptedPrivateKey: string;
 }
 
@@ -93,11 +94,9 @@ export const generateE2EKeys = async (
   // Assemble the encrypted package
   const encryptedPrivateKeyPayload = `${ciphertextHex}.${ivHex}.${saltHex}`;
 
-  // Commit the raw private key to local storage for instant access
-  localStorage.setItem("msg_private_key", JSON.stringify(exportedPrivateKey));
-
   return {
     publicKey: JSON.stringify(exportedPublicKey),
+    privateKey: JSON.stringify(exportedPrivateKey),
     encryptedPrivateKey: encryptedPrivateKeyPayload,
   };
 };
@@ -106,7 +105,7 @@ export const generateE2EKeys = async (
 export const decryptE2EKey = async (
   encryptedPayload: string,
   password: string,
-): Promise<void> => {
+): Promise<string> => {
   // Deconstruct the unified payload string using our dot delimiter
   const [ciphertextHex, ivHex, saltHex] = encryptedPayload.split(".");
   if (!ciphertextHex || !ivHex || !saltHex) {
@@ -152,6 +151,5 @@ export const decryptE2EKey = async (
   // Translate the unlocked binary byte buffer back into a standard readable JSON string
   const stringifiedPrivateKey = new TextDecoder().decode(decryptedBuffer);
 
-  // Commit the validated raw key directly to the local storage environment
-  localStorage.setItem("msg_private_key", stringifiedPrivateKey);
+  return stringifiedPrivateKey;
 };
