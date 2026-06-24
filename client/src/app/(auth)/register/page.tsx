@@ -6,6 +6,7 @@ import { generateE2EKeys } from "@/lib/crypto";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Loader2 } from "lucide-react";
+import { useAuthStore } from "@/stores/useAuthStore";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -15,6 +16,8 @@ export default function RegisterPage() {
   const [confirmPassword, setConfirmPassword] = useState<string>("");
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [errorStatus, setErrorStatus] = useState<string>("");
+
+  const setAuthKeys = useAuthStore((state) => state.setAuthKeys);
 
   useEffect(() => {
     if (!errorStatus) return;
@@ -29,7 +32,6 @@ export default function RegisterPage() {
   const handleSubmit = async (event: React.SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
     setErrorStatus("");
-    setIsLoading(true);
 
     const usernameRegex = /^[a-zA-Z0-9_]{3,20}$/;
 
@@ -50,9 +52,13 @@ export default function RegisterPage() {
       return;
     }
 
+    setIsLoading(true);
+
     try {
-      const { publicKey, encryptedPrivateKey } =
+      const { publicKey, privateKey, encryptedPrivateKey } =
         await generateE2EKeys(password);
+
+      setAuthKeys(publicKey, privateKey);
 
       const action = await registerUser({
         username,
@@ -68,12 +74,14 @@ export default function RegisterPage() {
         setErrorStatus(
           action.error || "An error occurred during account creation.",
         );
+        setIsLoading(false);
       }
     } catch (error) {
       console.log("Error while executing cryptographic assignment:", error);
       setErrorStatus(
         "Failed to execute cryptographic key assignment or server communication.",
       );
+      setIsLoading(false);
     }
   };
 

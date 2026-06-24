@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { getSession } from "next-auth/react";
 import { Loader2 } from "lucide-react";
+import { useAuthStore } from "@/stores/useAuthStore";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -15,6 +16,8 @@ export default function LoginPage() {
   const [password, setPassword] = useState<string>("");
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [errorStatus, setErrorStatus] = useState<string>("");
+
+  const setAuthKeys = useAuthStore((state) => state.setAuthKeys);
 
   useEffect(() => {
     if (!errorStatus) return;
@@ -39,41 +42,42 @@ export default function LoginPage() {
       return;
     }
 
-    if (password.length < 8) {
-      setErrorStatus("Password must be at least 8 characters long.");
-      return;
-    }
-
     setIsLoading(true);
+
     try {
       const response = await loginUser(username, password);
 
-      if (response.success) {
-        const session = await getSession();
-
-        if (session?.user?.encryptedPrivateKey) {
-          const currentCachedKey = localStorage.getItem("msg_private_key");
-
-          if (!currentCachedKey) {
-            try {
-              await decryptE2EKey(session.user.encryptedPrivateKey, password);
-            } catch (cryptoError) {
-              console.error("Cryptographic key failure:", cryptoError);
-              setErrorStatus(
-                "Authentication succeeded, but key reconstruction failed.",
-              );
-              setIsLoading(false);
-              return;
-            }
-          }
-        }
-
-        setIsLoading(false);
-        router.push("/");
-      } else {
+      if (!response.success) {
         setErrorStatus(response.error || "Invalid username or password");
         setIsLoading(false);
+        return;
       }
+
+      const session = await getSession();
+
+      if (!session?.user?.encryptedPrivateKey || !session?.user?.publicKey) {
+        setErrorStatus("Key construction failed.");
+        setIsLoading(false);
+        return;
+      }
+
+      try {
+        const decryptedPrivateKey = await decryptE2EKey(
+          session.user.encryptedPrivateKey,
+          password,
+        );
+        setAuthKeys(decryptedPrivateKey, session.user.publicKey);
+      } catch (cryptoError) {
+        console.error("Cryptographic key failure:", cryptoError);
+        setErrorStatus(
+          "Authentication succeeded, but key reconstruction failed.",
+        );
+        setIsLoading(false);
+        return;
+      }
+
+      setIsLoading(false);
+      router.push("/");
     } catch (error) {
       console.log("Error while logging in the user:", error);
       setErrorStatus("Failed to login due to server error. Try again.");
