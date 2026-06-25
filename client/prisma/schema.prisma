@@ -25,10 +25,16 @@ model User {
   messages Message[]
 }
 
+enum RoomType {
+  DM
+  GROUP
+}
+
 model Room {
   id  String  @id @default(uuid())
-  isGroup Boolean
+  type RoomType @default(DM)
   createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 
   roomParticipants RoomParticipant[]
   messages Message[]
@@ -39,10 +45,11 @@ model RoomParticipant {
   roomId String
   joinedAt  DateTime  @default(now())
 
-  user  User  @relation(fields: [userId], references: [id])
-  room  Room  @relation(fields: [roomId], references: [id])
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  room  Room  @relation(fields: [roomId], references: [id], onDelete: Cascade)
 
   @@id([userId, roomId])
+  @@index([roomId])
 }
 
 model Message {
