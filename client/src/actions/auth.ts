@@ -4,6 +4,7 @@ import bcrypt from "bcryptjs";
 import prisma from "@/lib/prisma";
 import { signIn } from "@/auth";
 import { AuthError } from "next-auth";
+import { ActionResponse } from "@/types/actions";
 
 type FormData = {
   username: string;
@@ -12,18 +13,17 @@ type FormData = {
   encryptedPrivateKey: string;
 };
 
-interface ActionResponse {
-  success: boolean;
-  error?: string;
-}
-
 export async function registerUser(
   formData: FormData,
 ): Promise<ActionResponse> {
   const { username, password, publicKey, encryptedPrivateKey } = formData;
 
   if (!username || !password || !publicKey || !encryptedPrivateKey) {
-    return { success: false, error: "The input values cannot be empty!" };
+    return {
+      success: false,
+      error: "The input values cannot be empty!",
+      data: null,
+    };
   }
 
   try {
@@ -39,6 +39,7 @@ export async function registerUser(
         success: false,
         error:
           "A user with this username already exists! Try another user name.",
+        data: null,
       };
     }
 
@@ -53,7 +54,7 @@ export async function registerUser(
       },
     });
 
-    return { success: true };
+    return { success: true, error: null, data: null };
   } catch (error) {
     console.error("Registration execution crash:", error);
 
@@ -61,6 +62,7 @@ export async function registerUser(
       success: false,
       error:
         "An unexpected database error occurred while creating the account!",
+      data: null,
     };
   }
 }
@@ -73,6 +75,7 @@ export async function loginUser(
     return {
       success: false,
       error: "The username or password values cannot be empty!",
+      data: null,
     };
   }
 
@@ -83,10 +86,14 @@ export async function loginUser(
       redirect: false,
     });
 
-    return { success: true };
+    return { success: true, error: null, data: null };
   } catch (error) {
     if (error instanceof AuthError) {
-      return { success: false, error: "Invalid username or password." };
+      return {
+        success: false,
+        error: "Invalid username or password.",
+        data: null,
+      };
     }
     throw error;
   }
