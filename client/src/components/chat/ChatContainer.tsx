@@ -9,12 +9,18 @@ export default function ChatContainer() {
 
   const { messages, isLoading, error } = useMessages(activeRoomId);
 
-  return (
-    <div className="w-full flex flex-col">
-      {!activeRoomId && (
-        <div className="m-auto">Select a chat to see its messages.</div>
-      )}
+  if (!activeRoomId) {
+    return (
+      <div className="w-full flex flex-col h-full">
+        <div className="m-auto text-muted-foreground">
+          Select a chat to see its messages.
+        </div>
+      </div>
+    );
+  }
 
+  return (
+    <div className="w-full flex flex-col h-full">
       {isLoading && <Loader2 className="w-10 h-10 m-auto animate-spin" />}
 
       {!isLoading && messages.length === 0 && (
