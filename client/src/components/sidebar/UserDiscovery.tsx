@@ -1,4 +1,5 @@
 "use client";
+
 import { useUserDiscovery } from "@/hooks/useUserDiscovery";
 import { useState } from "react";
 
@@ -16,18 +17,17 @@ export default function UserDiscovery() {
 
   return (
     <div className="relative">
-      <label htmlFor="search">Search users</label>
       <input
         type="text"
         id="search"
-        placeholder="Search here..."
+        placeholder="Search users here"
         value={searchQuery}
         onChange={(event) => setSearchQuery(event.target.value)}
-        className="p-2 border border-border rounded-xl placeholder:text-muted-foreground shadow-md shadow-primary active:shadow-primary-hover outline-none"
+        className="p-2 border border-border rounded-xl placeholder:text-muted-foreground placeholder:text-sm shadow-md outline-none"
       />
 
       {searchQuery.trim().length > 0 && (
-        <div className="absolute mt-1 top-auto z-50 p-2 border border-border rounded-xl w-full">
+        <div className="absolute mt-2 top-auto z-50 p-2 border border-border rounded-xl w-full bg-background/90 flex flex-col gap-1 transition-all">
           {isSearching && (
             <div className="text-sm text-muted-foreground">
               Searching for users...
@@ -41,10 +41,16 @@ export default function UserDiscovery() {
             searchQuery.trim().length > 0 &&
             users.length > 0 &&
             users.map((user) => (
-              <div key={user.id}>
+              <div
+                key={user.id}
+                className="bg-card border border-border rounded-xl p-2"
+              >
                 <button
                   type="button"
-                  onClick={() => createConversation(user.id)}
+                  onClick={() => {
+                    createConversation(user.id);
+                    setSearchQuery("");
+                  }}
                   disabled={isCreatingRoom}
                 >
                   {isCreatingRoom ? "Connecting" : user.username}
