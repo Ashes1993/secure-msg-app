@@ -1,10 +1,12 @@
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getUser } from "@/actions/users";
 import { createRoom } from "@/actions/room";
 import { useUiStore } from "@/stores/useUiStore";
 
 export function useUserDiscovery(searchQuery: string) {
   const setActiveRoomId = useUiStore((state) => state.setActiveRoomId);
+
+  const queryClient = useQueryClient();
 
   const userSearchQuery = useQuery({
     queryKey: ["users", searchQuery],
@@ -32,8 +34,9 @@ export function useUserDiscovery(searchQuery: string) {
       return response.data;
     },
 
-    onSuccess: (roomPayload) => {
+    onSuccess: async (roomPayload) => {
       if (roomPayload?.id) {
+        await queryClient.invalidateQueries({ queryKey: ["rooms"] });
         setActiveRoomId(roomPayload.id);
       }
     },
