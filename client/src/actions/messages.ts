@@ -5,6 +5,7 @@ import { auth } from "@/auth";
 import { ActionResponse } from "@/types/actions";
 
 interface Message {
+  id: string;
   senderId: string;
   content: string;
   createdAt: Date;
@@ -39,6 +40,7 @@ export async function getMessages(
             createdAt: "asc",
           },
           select: {
+            id: true,
             senderId: true,
             content: true,
             createdAt: true,
