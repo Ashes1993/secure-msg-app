@@ -2,6 +2,8 @@
 
 import { useMessages } from "@/hooks/useMessages";
 import { Loader2 } from "lucide-react";
+import { useRooms } from "@/hooks/useRooms";
+import CreateMessageForm from "./CreateMessageForm";
 
 interface ChatContainerProps {
   roomId: string;
@@ -13,6 +15,11 @@ export default function ChatContainer({
   currentUserId,
 }: ChatContainerProps) {
   const { messages, isLoading, error } = useMessages(roomId, currentUserId);
+  const { rooms } = useRooms();
+  const activeRoom = rooms?.find((room) => room.id === roomId);
+  const targetPublicKey = activeRoom?.targetUserPublicKey;
+
+  if (!targetPublicKey) return <div>Error: Secure key exchange failed.</div>;
 
   if (!roomId) {
     return (
@@ -59,6 +66,7 @@ export default function ChatContainer({
           ))}
         </div>
       )}
+      <CreateMessageForm roomId={roomId} targetPublicKey={targetPublicKey} />
     </div>
   );
 }
