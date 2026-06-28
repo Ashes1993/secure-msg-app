@@ -1,3 +1,5 @@
+"use client";
+
 import { getRooms } from "@/actions/room";
 import { useQuery } from "@tanstack/react-query";
 
