@@ -56,8 +56,10 @@ model Message {
   id  String  @id @default(uuid())
   roomId  String
   senderId String
-  content String
+  encryptedContent String
   iv  String
+  senderEncrptedKey String
+  recipientEncryptedKey String
   createdAt DateTime  @default(now())
 
   user  User  @relation(fields: [senderId], references: [id])

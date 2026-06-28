@@ -4,6 +4,13 @@ interface E2EKeyPairPayload {
   encryptedPrivateKey: string;
 }
 
+interface EncryptedMessagePayload {
+  encryptedContent: string;
+  iv: string;
+  senderEncryptedKey: string;
+  recipientEncryptedKey: string;
+}
+
 // Helper: Converts raw binary buffers into database-safe hexadecimal text strings
 const bufferToHex = (buffer: ArrayBuffer): string => {
   return Array.from(new Uint8Array(buffer))
@@ -152,4 +159,122 @@ export const decryptE2EKey = async (
   const stringifiedPrivateKey = new TextDecoder().decode(decryptedBuffer);
 
   return stringifiedPrivateKey;
+};
+
+// Encrpts a message using a temporary symmetric AES key.
+export const encryptMessage = async (
+  plaintext: string,
+  senderPublicKeyJwk: string,
+  recipientPublicKeyJwk: string,
+): Promise<EncryptedMessagePayload> => {
+  // Rehydrate raw JWK strings into cryptographic key objects
+  const senderKey = await window.crypto.subtle.importKey(
+    "jwk",
+    JSON.parse(senderPublicKeyJwk),
+    { name: "RSA-OAEP", hash: "SHA-256" },
+    true,
+    ["encrypt"],
+  );
+
+  const recipientKey = await window.crypto.subtle.importKey(
+    "jwk",
+    JSON.parse(recipientPublicKeyJwk),
+    { name: "RSA-OAEP", hash: "SHA-256" },
+    true,
+    ["encrypt"],
+  );
+
+  // Generate a secure 256-bit synnetric AES key for this message
+  const messageKey = await window.crypto.subtle.generateKey(
+    { name: "AES-GCM", length: 256 },
+    true,
+    ["encrypt", "decrypt"],
+  );
+
+  // Convert plaintext into binary bytes and encrypt it with AES-GCM
+  const textBytes = new TextEncoder().encode(plaintext);
+  const iv = window.crypto.getRandomValues(new Uint8Array(12));
+
+  const encryptedContentBuffer = await window.crypto.subtle.encrypt(
+    { name: "AES-GCM", iv },
+    messageKey,
+    textBytes,
+  );
+
+  // Export the raw binary key of the AES key so it can be locked via RSA
+  const rawMessageKeyBuffer = await window.crypto.subtle.exportKey(
+    "raw",
+    messageKey,
+  );
+
+  // Asymmetrically encrypt that single AES key buffer for both participants
+  const senderWrappedKeyBuffer = await window.crypto.subtle.encrypt(
+    { name: "RSA-OAEP" },
+    senderKey,
+    rawMessageKeyBuffer,
+  );
+
+  const recipientWrappedKeyBuffer = await window.crypto.subtle.encrypt(
+    { name: "RSA-OAEP" },
+    recipientKey,
+    rawMessageKeyBuffer,
+  );
+
+  return {
+    encryptedContent: bufferToHex(encryptedContentBuffer),
+    iv: bufferToHex(iv.buffer),
+    senderEncryptedKey: bufferToHex(senderWrappedKeyBuffer),
+    recipientEncryptedKey: bufferToHex(recipientWrappedKeyBuffer),
+  };
+};
+
+// Unlocks the wrapped symmetric AES key using the RSA private key.
+export const decryptMessage = async (
+  payload: EncryptedMessagePayload,
+  myPrivateKeyJwk: string,
+  isSender: boolean,
+): Promise<string> => {
+  // Rehydrate the asymmetric RSA private key into memory
+  const privateKey = await window.crypto.subtle.importKey(
+    "jwk",
+    JSON.parse(myPrivateKeyJwk),
+    { name: "RSA-OAEP", hash: "SHA-256" },
+    true,
+    ["decrypt"],
+  );
+
+  // Extract the correct hex-string block depending on the role in this conversation
+  const targetKeyHex = isSender
+    ? payload.senderEncryptedKey
+    : payload.recipientEncryptedKey;
+  const wrappedKeyBuffer = hexToBuffer(targetKeyHex);
+
+  // Use private key to decrypt the raw binary bytes of the original AES key
+  const rawMessageKeyBuffer = await window.crypto.subtle.decrypt(
+    { name: "RSA-OAEP" },
+    privateKey,
+    wrappedKeyBuffer,
+  );
+
+  // Convert those raw decrypted bytes back into an active symmetric AES CryptoKey object
+  const messageKey = await window.crypto.subtle.importKey(
+    "raw",
+    rawMessageKeyBuffer,
+    "AES-GCM",
+    true,
+    ["decrypt"],
+  );
+
+  // Decrypt the main text block using the symmetric key and its original unique IV
+  const contentBuffer = hexToBuffer(payload.encryptedContent);
+  const ivBuffer = hexToBuffer(payload.iv);
+
+  const decryptedBuffer = await window.crypto.subtle.decrypt(
+    { name: "AES-GCM", iv: new Uint8Array(ivBuffer) },
+    messageKey,
+    contentBuffer,
+  );
+
+  // Translate the binary byte array back into standard readable plaintext
+  return new TextDecoder().decode(decryptedBuffer);
 };
