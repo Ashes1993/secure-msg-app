@@ -2,14 +2,15 @@
 
 import { useRooms } from "@/hooks/useRooms";
 import { Loader2 } from "lucide-react";
-import { useUiStore } from "@/stores/useUiStore";
+import Link from "next/link";
+import { useParams } from "next/navigation";
 
 export default function RoomList() {
-  const setActiveRoomId = useUiStore((state) => state.setActiveRoomId);
   const { rooms, isLoading, error } = useRooms();
+  const { roomId } = useParams();
 
   return (
-    <div className="mt-4">
+    <div className="mt-4 overflow-y-auto">
       {!isLoading && rooms.length === 0 && <div>No rooms</div>}
 
       {isLoading && <Loader2 className="w-4 h-4 m-auto animate-spin" />}
@@ -18,16 +19,20 @@ export default function RoomList() {
 
       {!isLoading && rooms.length > 0 && (
         <div className="flex flex-col gap-2">
-          {rooms.map((room) => (
-            <div
-              className="bg-card border border-border p-2 rounded-xl"
-              key={room.id}
-              onClick={() => setActiveRoomId(room.id)}
-            >
-              <h3 className="text-sm font-bold">{room.targetUserUsername}</h3>
-              <p className="text-xs">{room.lastMessage}</p>
-            </div>
-          ))}
+          {rooms.map((room) => {
+            const isActive = room.id === roomId;
+
+            return (
+              <Link
+                className={`bg-card border border-border p-2 rounded-xl ${isActive && "scale-[0.98] bg-primary/50 border-primary"}`}
+                key={room.id}
+                href={`/chat/${room.id}`}
+              >
+                <h3 className="text-sm font-bold">{room.targetUserUsername}</h3>
+                <p className="text-xs">{room.lastMessage}</p>
+              </Link>
+            );
+          })}
         </div>
       )}
     </div>
