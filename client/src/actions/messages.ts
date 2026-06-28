@@ -4,21 +4,114 @@ import prisma from "@/lib/prisma";
 import { auth } from "@/auth";
 import { ActionResponse } from "@/types/actions";
 
-interface Message {
+interface MessageEntity {
   id: string;
   senderId: string;
-  content: string;
-  createdAt: Date;
+  encryptedContent: string;
   iv: string;
+  senderEncryptedKey: string;
+  recipientEncryptedKey: string;
+  createdAt: Date;
+}
+
+export async function createMessage(
+  roomId: string,
+  encryptedContent: string,
+  iv: string,
+  senderEncryptedKey: string,
+  recipientEncryptedKey: string,
+): Promise<ActionResponse<MessageEntity | null>> {
+  const session = await auth();
+  const currentUserId = session?.user?.id;
+
+  if (!currentUserId)
+    return { success: false, error: "User Unauthorized", data: null };
+
+  if (
+    !roomId ||
+    !encryptedContent ||
+    !iv ||
+    !senderEncryptedKey ||
+    !recipientEncryptedKey
+  ) {
+    return {
+      success: false,
+      error: "Malformed payload structures encountered",
+      data: null,
+    };
+  }
+
+  const roomMembership = await prisma.room.findUnique({
+    where: {
+      id: roomId,
+    },
+    select: {
+      roomParticipants: {
+        where: {
+          userId: currentUserId,
+        },
+        select: { userId: true },
+      },
+    },
+  });
+
+  if (!roomMembership || roomMembership.roomParticipants.length === 0) {
+    return {
+      success: false,
+      error:
+        "Access Denied: You are not an active participant of this conversation.",
+      data: null,
+    };
+  }
+
+  try {
+    const [newMessage] = await prisma.$transaction([
+      prisma.message.create({
+        data: {
+          roomId,
+          senderId: currentUserId,
+          encryptedContent,
+          iv,
+          senderEncryptedKey,
+          recipientEncryptedKey,
+        },
+        select: {
+          id: true,
+          senderId: true,
+          encryptedContent: true,
+          iv: true,
+          senderEncryptedKey: true,
+          recipientEncryptedKey: true,
+          createdAt: true,
+        },
+      }),
+
+      prisma.room.update({
+        where: { id: roomId },
+        data: { updatedAt: new Date() },
+      }),
+    ]);
+
+    return { success: true, error: null, data: newMessage };
+  } catch (err) {
+    console.error("Database error while creating a message: ", err);
+    return {
+      success: false,
+      error: "Encountered an erro while creating the message in the database",
+      data: null,
+    };
+  }
 }
 
 export async function getMessages(
   roomId: string,
-): Promise<ActionResponse<Message[] | null>> {
+  cursor?: string,
+  limit = 50,
+): Promise<ActionResponse<MessageEntity[] | null>> {
   const session = await auth();
-  const userId = session?.user?.id;
+  const currentUserId = session?.user?.id;
 
-  if (!userId)
+  if (!currentUserId)
     return { success: false, error: "User Unauthorized", data: null };
 
   if (!roomId) {
@@ -26,43 +119,32 @@ export async function getMessages(
   }
 
   try {
-    const room = await prisma.room.findUnique({
+    const messages = await prisma.message.findMany({
+      take: limit,
+      ...(cursor && { skip: 1, cursor: { id: cursor } }),
       where: {
-        id: roomId,
+        roomId,
+        room: {
+          roomParticipants: {
+            some: { userId: currentUserId },
+          },
+        },
+      },
+      orderBy: {
+        createdAt: "asc",
       },
       select: {
-        roomParticipants: {
-          where: { userId },
-          select: { userId: true },
-        },
-        messages: {
-          orderBy: {
-            createdAt: "asc",
-          },
-          select: {
-            id: true,
-            senderId: true,
-            content: true,
-            createdAt: true,
-            iv: true,
-          },
-        },
+        id: true,
+        senderId: true,
+        encryptedContent: true,
+        iv: true,
+        senderEncryptedKey: true,
+        recipientEncryptedKey: true,
+        createdAt: true,
       },
     });
 
-    if (!room) {
-      return { success: false, error: "conversation not found.", data: null };
-    }
-
-    if (room.roomParticipants.length === 0) {
-      return {
-        success: false,
-        error: "Access Denied: You are not a participant of this conversation.",
-        data: null,
-      };
-    }
-
-    return { success: true, error: null, data: room.messages };
+    return { success: true, error: null, data: messages };
   } catch (err) {
     console.log("Error while retrieving messages from the database: ", err);
     return {
