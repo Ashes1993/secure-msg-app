@@ -58,7 +58,7 @@ model Message {
   senderId String
   encryptedContent String
   iv  String
-  senderEncrptedKey String
+  senderEncryptedKey String
   recipientEncryptedKey String
   createdAt DateTime  @default(now())
 
