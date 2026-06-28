@@ -14,6 +14,7 @@ interface SidebarRoom {
   updatedAt: Date;
   targetUserId: string;
   targetUserUsername: string;
+  targetUserPublicKey: string;
   lastMessage: string;
 }
 
@@ -114,6 +115,7 @@ export async function getRooms(): Promise<
               select: {
                 id: true,
                 username: true,
+                publicKey: true,
               },
             },
           },
@@ -124,7 +126,7 @@ export async function getRooms(): Promise<
           },
           take: 1,
           select: {
-            content: true,
+            encryptedContent: true,
             createdAt: true,
             senderId: true,
           },
@@ -143,8 +145,10 @@ export async function getRooms(): Promise<
 
         targetUserId: targetParticipant?.id || "unknown-id",
         targetUserUsername: targetParticipant?.username || "Unknown User",
+        targetUserPublicKey: targetParticipant?.publicKey || "null",
 
-        lastMessage: latestMessage?.content || "No messages yet. Say hello!",
+        lastMessage:
+          latestMessage?.encryptedContent || "No messages yet. Say hello!",
       };
     });
 
