@@ -50,6 +50,7 @@ describe("End-to-End Cryptographic Engine Pipelines", () => {
     ).rejects.toThrow();
   });
 
+  // Encrypt a message
   it("should encrypt a message payload targeting both sender and recipient public keys", async () => {
     encryptedMsgPayload = await encryptMessage(
       cleartextMessage,
@@ -67,6 +68,7 @@ describe("End-to-End Cryptographic Engine Pipelines", () => {
     );
   });
 
+  // Decrypt an encrypted message
   it("should allow the recipient to decrypt the message using their private key", async () => {
     const decryptedText = await decryptMessage(
       encryptedMsgPayload,
@@ -87,6 +89,7 @@ describe("End-to-End Cryptographic Engine Pipelines", () => {
     expect(decryptedText).toBe(cleartextMessage);
   });
 
+  // Tamper with the payload test
   it("should fail gracefully and throw an error if the encrypted payload is tempered with", async () => {
     const corruptedPayload = { ...encryptedMsgPayload };
     corruptedPayload.encryptedContent =
