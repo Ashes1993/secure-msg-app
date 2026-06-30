@@ -49,7 +49,7 @@ export function useUserDiscovery(searchQuery: string) {
 
   return {
     users: userSearchQuery.data || [],
-    isSearching: userSearchQuery.isPending,
+    isSearching: userSearchQuery.isFetching,
     searchError: userSearchQuery.error?.message || null,
 
     createConversation: roomCreationMutation.mutate,
