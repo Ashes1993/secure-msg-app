@@ -7,6 +7,9 @@
   --border: hsl(214.3 31.8% 91.4%);
   --primary: hsl(142.1 70.6% 45.3%);
   --primary-hover: hsl(142.1 76.2% 36.3%);
+  --accent: hsl(210 40% 93%);
+  --ring: hsl(142.1 70.6% 45.3%);
+  --popover: hsl(0 0% 100%);
   --muted-foreground: hsl(215.4 16.3% 46.9%);
   --destructive: hsl(0 84.2% 60.2%);
   --destructive-foreground: hsl(210 40% 98%);
@@ -19,6 +22,9 @@
   --color-border: var(--border);
   --color-primary: var(--primary);
   --color-primary-hover: var(--primary-hover);
+  --color-accent: var(--accent);
+  --color-ring: var(--ring);
+  --color-popover: var(--popover);
   --color-muted-foreground: var(--muted-foreground);
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
@@ -31,6 +37,9 @@
   --border: hsl(217.2 32.6% 17.5%);
   --primary: hsl(142.1 69.2% 58%);
   --primary-hover: hsl(142.1 70.6% 45.3%);
+  --accent: hsl(217.2 32.6% 12%);
+  --ring: hsl(142.1 69.2% 58%);
+  --popover: hsl(222.2 84% 6%);
   --muted-foreground: hsl(215 20.2% 65.1%);
   --destructive: hsl(0 62.8% 30.6%);
   --destructive-foreground: hsl(0 0% 100%);
@@ -42,4 +51,25 @@ body {
   transition:
     background-color 0.2s ease,
     border-color 0.2s ease;
+}
+
+/* Animations */
+@keyframes slideDownFade {
+  from {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.99);
+  }
+
+  to {
+    opacity: 1;
+    transcform: translateY(0) scale(1);
+  }
+}
+
+.animate-popover {
+  animation: slideDownFade 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.transition-micro {
+  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
 }
