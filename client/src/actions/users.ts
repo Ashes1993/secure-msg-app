@@ -17,7 +17,11 @@ export async function getUser(
   const userId = session?.user?.id;
 
   if (!userId) {
-    return { success: false, error: "User unauthorized.", data: [] };
+    return {
+      success: false,
+      error: "Authentication session expired. Please sign in again.",
+      data: [],
+    };
   }
 
   try {
@@ -40,10 +44,14 @@ export async function getUser(
 
     return { success: true, error: null, data: searchedUsers };
   } catch (err) {
-    console.log("Database error during user discovery lookup:", err);
+    console.error(
+      "[ServerAction:getUser] Database lookup exception encountered during user query search:",
+      err,
+    );
     return {
       success: false,
-      error: "Encountered error while getting user data from the database.",
+      error:
+        "Unable to complete search request due to a system failure. Please try again shortly.",
       data: [],
     };
   }

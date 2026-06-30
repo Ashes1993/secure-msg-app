@@ -13,7 +13,9 @@ export function useUserDiscovery(searchQuery: string) {
     queryFn: async () => {
       const response = await getUser(searchQuery);
       if (!response.success) {
-        throw new Error(response.error || "Failed to discover users.");
+        throw new Error(
+          response.error || "An unexpected error occurred during discovery.",
+        );
       }
 
       return response.data;
@@ -25,14 +27,19 @@ export function useUserDiscovery(searchQuery: string) {
   const roomCreationMutation = useMutation({
     mutationFn: async (targetUserId: string) => {
       const response = await createRoom(targetUserId);
-
       if (!response.success) {
-        throw new Error(response.error || "Failled to establish chat channel.");
+        throw new Error(
+          response.error || "Could not establish secure communication channel.",
+        );
       }
-
       return response.data;
     },
-
+    onError: (error) => {
+      console.error(
+        "[Hook:useUserDiscovery] Room creation mutation rejected:",
+        error.message,
+      );
+    },
     onSuccess: async (roomPayload) => {
       if (roomPayload?.id) {
         await queryClient.invalidateQueries({ queryKey: ["rooms"] });
