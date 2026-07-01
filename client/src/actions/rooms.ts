@@ -16,6 +16,12 @@ interface SidebarRoom {
   targetUserUsername: string;
   targetUserPublicKey: string;
   lastMessage: string;
+  lastMessageSenderId: string | null;
+  lastMessageIv: string | null;
+  lastMessageSenderEncryptedKey: string | null;
+  lastMessageRecipientEncryptedKey: string | null;
+  lastMessageAt: Date | null;
+  currentUserId: string;
 }
 
 export async function createRoom(
@@ -25,12 +31,17 @@ export async function createRoom(
   const currentUserId = session?.user?.id;
 
   if (!currentUserId)
-    return { success: false, error: "User unauthorized.", data: null };
+    return {
+      success: false,
+      error: "Authentication session expired. Please sign in again.",
+      data: null,
+    };
 
   if (targetUserId === currentUserId)
     return {
       success: false,
-      error: "User cannot create room with themselves",
+      error:
+        "Invalid operation. You cannot initiate a conversation channel with yourself.",
       data: null,
     };
 
@@ -67,11 +78,14 @@ export async function createRoom(
 
     return { success: true, error: null, data: newRoom };
   } catch (err) {
-    console.error("Database error during room creation layout:", err);
+    console.error(
+      "[ServerAction:createRoom] Database exception encountered during creating a new room:",
+      err,
+    );
     return {
       success: false,
       error:
-        "Encountered an internal error while building the messagin channel.",
+        "Unable to complete room creation request due to a system failure. Please try again shortly.",
       data: null,
     };
   }
@@ -84,7 +98,11 @@ export async function getRooms(): Promise<
   const currentUserId = session?.user?.id;
 
   if (!currentUserId)
-    return { success: false, error: "User unauthorized.", data: null };
+    return {
+      success: false,
+      error: "Authentication session expired. Please sign in again.",
+      data: null,
+    };
 
   try {
     const rooms = await prisma.room.findMany({
@@ -129,6 +147,9 @@ export async function getRooms(): Promise<
             encryptedContent: true,
             createdAt: true,
             senderId: true,
+            iv: true,
+            senderEncryptedKey: true,
+            recipientEncryptedKey: true,
           },
         },
       },
@@ -149,16 +170,27 @@ export async function getRooms(): Promise<
 
         lastMessage:
           latestMessage?.encryptedContent || "No messages yet. Say hello!",
+        lastMessageSenderId: latestMessage?.senderId || null,
+        lastMessageIv: latestMessage?.iv || null,
+        lastMessageSenderEncryptedKey:
+          latestMessage?.senderEncryptedKey || null,
+        lastMessageRecipientEncryptedKey:
+          latestMessage?.recipientEncryptedKey || null,
+        lastMessageAt: latestMessage?.createdAt || null,
+        currentUserId,
       };
     });
 
     return { success: true, error: null, data: sanitizedRooms };
   } catch (err) {
-    console.log("Database error during rooms retrieving: ", err);
+    console.log(
+      "[ServerAction:getRooms] Database exception encountered during retrieving the rooms:",
+      err,
+    );
     return {
       success: false,
       error:
-        "Encountered an error when trying to retrieve rooms from the database",
+        "Unable to retrieve list of rooms due to a system failure. Please try again shortly.",
       data: null,
     };
   }
