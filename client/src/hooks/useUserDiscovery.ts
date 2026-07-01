@@ -2,7 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { getUser } from "@/actions/users";
-import { createRoom } from "@/actions/room";
+import { createRoom } from "@/actions/rooms";
 
 export function useUserDiscovery(searchQuery: string) {
   const queryClient = useQueryClient();

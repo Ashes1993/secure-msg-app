@@ -4,7 +4,7 @@ import { useUserDiscovery } from "./useUserDiscovery";
 import { getUser } from "@/actions/users";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import React from "react";
-import { createRoom } from "@/actions/room";
+import { createRoom } from "@/actions/rooms";
 
 vi.mock("@/actions/users", () => ({
   getUser: vi.fn(),
