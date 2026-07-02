@@ -3,16 +3,7 @@
 import prisma from "@/lib/prisma";
 import { auth } from "@/auth";
 import { ActionResponse } from "@/types/actions";
-
-interface MessageEntity {
-  id: string;
-  senderId: string;
-  encryptedContent: string;
-  iv: string;
-  senderEncryptedKey: string;
-  recipientEncryptedKey: string;
-  createdAt: Date;
-}
+import { MessageEntity } from "@/types/chat";
 
 export async function createMessage(
   roomId: string,
@@ -25,46 +16,50 @@ export async function createMessage(
   const currentUserId = session?.user?.id;
 
   if (!currentUserId)
-    return { success: false, error: "User Unauthorized", data: null };
+    return {
+      success: false,
+      error: "Authentication session expired. Please sign in again.",
+      data: null,
+    };
 
   if (
     !roomId ||
-    !encryptedContent ||
-    !iv ||
-    !senderEncryptedKey ||
-    !recipientEncryptedKey
+    !encryptedContent?.trim() ||
+    !iv?.trim() ||
+    !senderEncryptedKey?.trim() ||
+    !recipientEncryptedKey?.trim()
   ) {
     return {
       success: false,
-      error: "Malformed payload structures encountered",
-      data: null,
-    };
-  }
-
-  const roomMembership = await prisma.room.findUnique({
-    where: {
-      id: roomId,
-    },
-    select: {
-      roomParticipants: {
-        where: {
-          userId: currentUserId,
-        },
-        select: { userId: true },
-      },
-    },
-  });
-
-  if (!roomMembership || roomMembership.roomParticipants.length === 0) {
-    return {
-      success: false,
-      error:
-        "Access Denied: You are not an active participant of this conversation.",
+      error: "Malformed payload structures encountered. Try again shortly.",
       data: null,
     };
   }
 
   try {
+    const roomMembership = await prisma.room.findUnique({
+      where: {
+        id: roomId,
+      },
+      select: {
+        roomParticipants: {
+          where: {
+            userId: currentUserId,
+          },
+          select: { userId: true },
+        },
+      },
+    });
+
+    if (!roomMembership || roomMembership.roomParticipants.length === 0) {
+      return {
+        success: false,
+        error:
+          "Access Denied: You are not an active participant of this conversation.",
+        data: null,
+      };
+    }
+
     const [newMessage] = await prisma.$transaction([
       prisma.message.create({
         data: {
@@ -94,10 +89,14 @@ export async function createMessage(
 
     return { success: true, error: null, data: newMessage };
   } catch (err) {
-    console.error("Database error while creating a message: ", err);
+    console.error(
+      "[Actions:createMessage] Database error durinng secure message allocation execution",
+      err,
+    );
     return {
       success: false,
-      error: "Encountered an erro while creating the message in the database",
+      error:
+        "Unable to create message due to a system failure. Please try again shortly.",
       data: null,
     };
   }
@@ -112,16 +111,26 @@ export async function getMessages(
   const currentUserId = session?.user?.id;
 
   if (!currentUserId)
-    return { success: false, error: "User Unauthorized", data: null };
+    return {
+      success: false,
+      error: "Authentication session expired. Please sign in again.",
+      data: null,
+    };
 
-  if (!roomId) {
-    return { success: false, error: "Invalid Room ID", data: null };
+  if (!roomId?.trim()) {
+    return {
+      success: false,
+      error: "Bad request. Try again shortly.",
+      data: null,
+    };
   }
+
+  const sanitizedLimit = Math.min(Math.max(limit, 1), 100);
 
   try {
     const messages = await prisma.message.findMany({
-      take: limit,
-      ...(cursor && { skip: 1, cursor: { id: cursor } }),
+      take: sanitizedLimit,
+      ...(cursor?.trim() && { skip: 1, cursor: { id: cursor } }),
       where: {
         roomId,
         room: {
@@ -131,7 +140,7 @@ export async function getMessages(
         },
       },
       orderBy: {
-        createdAt: "asc",
+        createdAt: "desc",
       },
       select: {
         id: true,
@@ -146,11 +155,14 @@ export async function getMessages(
 
     return { success: true, error: null, data: messages };
   } catch (err) {
-    console.log("Error while retrieving messages from the database: ", err);
+    console.log(
+      "[Actions:getMessages] Database error durinng secure message retrieval:",
+      err,
+    );
     return {
       success: false,
       error:
-        "Encountered an internal error while retrieving messages from the database.",
+        "Unable to retrieve messages due to a system failure. Please try again shortly.",
       data: null,
     };
   }
