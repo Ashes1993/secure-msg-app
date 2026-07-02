@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useInfiniteQuery } from "@tanstack/react-query";
 import { getMessages } from "@/actions/messages";
 import { decryptMessage } from "@/lib/crypto";
 import { useAuthStore } from "@/stores/useAuthStore";
@@ -11,19 +11,20 @@ export function useMessages(
 ) {
   const privateKey = useAuthStore((state) => state.privateKey);
 
-  const roomMessages = useQuery({
-    queryKey: ["messages", roomId, currentUserId],
+  const roomMessages = useInfiniteQuery({
+    queryKey: ["messages", roomId],
 
-    queryFn: async () => {
-      if (!roomId) throw new Error("No room ID provided.");
+    queryFn: async ({ pageParam }) => {
+      if (!roomId) throw new Error("Failed to get room ID. Refresh the page.");
+
       if (!privateKey)
-        throw new Error(
-          "Cryptographic context missing: Private key unverified.",
-        );
+        throw new Error("Private key missing. Try to sign in again.");
 
-      const response = await getMessages(roomId);
+      const response = await getMessages(roomId, pageParam ?? undefined, 20);
       if (!response.success || !response.data) {
-        throw new Error(response.error || "Failed to get messages.");
+        throw new Error(
+          response.error || "Failed to retrieve messages. Try again shortly.",
+        );
       }
 
       return Promise.all(
@@ -41,27 +42,40 @@ export function useMessages(
               ...message,
               encryptedContent: decryptedText,
             };
-          } catch (cryptoError) {
+          } catch (err) {
             console.error(
-              "Failed to decrypt individual block message node:",
-              cryptoError,
+              "[Hooks:useMessages] Failed to decrypt individual block message node:",
+              err,
             );
 
             return {
               ...message,
-              encryptedContent:
-                "⚠️ [Decryption Failure: Unable to authenticate message signature]",
+              encryptedContent: "Unable to load the messages.",
             };
           }
         }),
       );
     },
+    initialPageParam: null as string | null,
+    getNextPageParam: (lastPage) => {
+      if (lastPage.length < 20) return undefined;
+      return lastPage[lastPage.length - 1]?.id ?? undefined;
+    },
     enabled: !!roomId && !!privateKey,
+    staleTime: 0,
+    refetchOnWindowFocus: false,
   });
 
+  const messages = roomMessages.data
+    ? roomMessages.data.pages.flatMap((page) => page).reverse()
+    : [];
+
   return {
-    messages: roomMessages.data || [],
+    messages,
     isLoading: roomMessages.isLoading,
     error: roomMessages.error?.message || null,
+    fetchNextPage: roomMessages.fetchNextPage,
+    hasNextPage: roomMessages.hasNextPage,
+    isFetchingNextPage: roomMessages.isFetchingNextPage,
   };
 }

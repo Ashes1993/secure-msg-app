@@ -22,7 +22,7 @@ export function useCreateMessage() {
       targetPublicKey,
     }: CreateMessageVariables) => {
       if (!currentUserPublicKey) {
-        throw new Error("No authenticated public key found in local state.");
+        throw new Error("Public key is missing. Please sign in again.");
       }
 
       const {
@@ -45,7 +45,9 @@ export function useCreateMessage() {
       );
 
       if (!response.success) {
-        throw new Error(response.error || "Failed to create the message");
+        throw new Error(
+          response.error || "Failed to create the message. Try again shortly.",
+        );
       }
 
       return response.data;
@@ -64,7 +66,7 @@ export function useCreateMessage() {
 
   return {
     messageCreation: messageCreationMutation.mutate,
-    isLoading: messageCreationMutation.isPending,
+    isPending: messageCreationMutation.isPending,
     error: messageCreationMutation.error?.message || null,
   };
 }
