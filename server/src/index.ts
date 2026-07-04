@@ -1,5 +1,6 @@
 import { createServer } from "http";
 import { WebSocketServer, WebSocket } from "ws";
+import { ConnectionManager } from "./ConnectionManager";
 
 declare module "ws" {
   interface WebSocket {
@@ -16,6 +17,9 @@ const httpServer = createServer((req, res) => {
 });
 
 const wss = new WebSocketServer({ noServer: true });
+const manager = new ConnectionManager();
+
+manager.startHeartbeatSentinel();
 
 httpServer.on("upgrade", (request, socket, head) => {
   const origin = request.headers.origin;
