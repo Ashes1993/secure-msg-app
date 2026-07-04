@@ -44,4 +44,22 @@ export class ConnectionManager {
       });
     }, intervalMs);
   }
+
+  public broadcastToRoom(
+    roomId: string,
+    senderId: string,
+    rawDataPayload: string,
+  ): void {
+    const participants = this.roomParticipants.get(roomId);
+    if (!participants) return;
+
+    participants.forEach((userId) => {
+      if (userId == senderId) return;
+
+      const socket = this.userSockets.get(userId);
+      if (socket && socket.readyState === WebSocket.OPEN) {
+        socket.send(rawDataPayload);
+      }
+    });
+  }
 }

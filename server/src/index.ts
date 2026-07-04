@@ -1,6 +1,7 @@
 import { createServer } from "http";
 import { WebSocketServer, WebSocket } from "ws";
 import { ConnectionManager } from "./ConnectionManager";
+import { WebSocketEvent } from "./types";
 
 declare module "ws" {
   interface WebSocket {
@@ -39,12 +40,65 @@ wss.on("connection", (ws: WebSocket) => {
   ws.isAlive = true;
   console.log("Client established authorized cryptographic socket pipe.");
 
+  let connectedUserId: string | null = null;
+
+  ws.on("pong", () => {
+    ws.isAlive = true;
+  });
+
+  ws.on("message", (rawBufferData) => {
+    try {
+      const stringifiedPayload = rawBufferData.toString();
+      const wsEvent = JSON.parse(stringifiedPayload) as WebSocketEvent;
+
+      switch (wsEvent.type) {
+        case "SUBSCRIBE":
+          connectedUserId = wsEvent.payload.userId;
+          manager.registerConnection(connectedUserId, ws);
+          manager.joinRoom(wsEvent.payload.roomId, connectedUserId);
+          console.log(
+            `User ${connectedUserId} subscribed to track Frame room [${wsEvent.payload.roomId}]`,
+          );
+          break;
+
+        case "UNSUBSCRIBE":
+          if (connectedUserId) {
+            manager.leaveRoom(wsEvent.payload.roomId, connectedUserId);
+          }
+          break;
+
+        case "ENCRYPTED_MESSAGE":
+          manager.broadcastToRoom(
+            wsEvent.payload.roomId,
+            wsEvent.payload.senderId,
+            stringifiedPayload,
+          );
+          break;
+
+        case "TYPING_STATUS":
+          manager.broadcastToRoom(
+            wsEvent.payload.roomId,
+            wsEvent.payload.userId,
+            stringifiedPayload,
+          );
+          break;
+      }
+    } catch (parseError) {
+      console.error("Malformed websocket framse discarded:", parseError);
+    }
+  });
+
   ws.on("error", (error) => {
     console.error("Socket pipeline disruption:", error);
   });
 
   ws.on("close", () => {
-    console.log("Client disconnected. Tearing down stream structures.");
+    if (connectedUserId) {
+      manager.removeConnection(connectedUserId);
+      console.log(
+        `Session torn down for authenticated identification ID: ${connectedUserId}`,
+      );
+    }
   });
 });
 
