@@ -75,8 +75,11 @@ export default function RoomList() {
 
       {/* Empty State */}
       {!isPending && !error && rooms.length === 0 && (
-        <div className="text-center text-xs text-muted-foreground py-12 font-medium border border-dashed border-border rounded=xl mx-1 bg-muted-foreground/20">
-          No active conversations found.
+        <div className="text-center py-12 px-2 border border-dashed border-border rounded-xl ">
+          <h3 className="font-bold text-xs">No active conversations found.</h3>
+          <p className="text-xs text-muted-foreground font-medium">
+            Search for a user and start a conversation.
+          </p>
         </div>
       )}
 
