@@ -6,7 +6,7 @@ import RoomList from "./RoomList";
 import UserDiscovery from "./UserDiscovery";
 import LogoutButton from "../auth/LogoutButton";
 
-export default function Sidebar() {
+export default function Sidebar({ username }: { username: string }) {
   const params = useParams();
 
   const isChatActive = !!params.roomId;
@@ -21,7 +21,7 @@ export default function Sidebar() {
         </div>
         <div className="flex-1 min-w-0">
           <h3 className="text-xs font-semibold text-foreground truncate">
-            Secure Session
+            {username}
           </h3>
           <p className="text-[10px] text-primary font-mono font-medium flex items-center gap-1">
             <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
