@@ -89,15 +89,12 @@ wss.on("connection", (ws: WebSocket) => {
   });
 
   ws.on("error", (error) => {
-    console.error("Socket pipeline disruption:", error);
+    console.error("Socket pipeline disruption:", error.message);
   });
 
   ws.on("close", () => {
     if (connectedUserId) {
       manager.removeConnection(connectedUserId);
-      console.log(
-        `Session torn down for authenticated identification ID: ${connectedUserId}`,
-      );
     }
   });
 });

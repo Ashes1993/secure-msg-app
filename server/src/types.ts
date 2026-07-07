@@ -10,10 +10,14 @@ export type WebSocketEvent =
   | {
       type: "ENCRYPTED_MESSAGE";
       payload: {
+        id: string;
         roomId: string;
         senderId: string;
-        recipientId: string;
-        encryptedPayload: string;
+        encryptedContent: string;
+        iv: string;
+        senderEncryptedKey: string;
+        recipientEncryptedKey: string;
+        createdAt: Date;
       };
     }
   | {
