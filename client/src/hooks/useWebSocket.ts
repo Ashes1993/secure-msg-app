@@ -6,10 +6,14 @@ export type WebSocketEvent =
   | {
       type: "ENCRYPTED_MESSAGE";
       payload: {
+        id: string;
         roomId: string;
         senderId: string;
-        recipientId: string;
-        encryptedPayload: string;
+        encryptedContent: string;
+        iv: string;
+        senderEncryptedKey: string;
+        recipientEncryptedKey: string;
+        createdAt: Date;
       };
     }
   | {
@@ -36,6 +40,11 @@ export function useWebSocket({
   const maxReconnectAttempts = 5;
 
   const connectRef = useRef<() => void>(() => {});
+  const onMessageRef = useRef(onMessageReceived);
+
+  useEffect(() => {
+    onMessageRef.current = onMessageReceived;
+  }, [onMessageReceived]);
 
   const connect = useCallback(() => {
     if (
@@ -49,6 +58,8 @@ export function useWebSocket({
     socketRef.current = ws;
 
     ws.onopen = () => {
+      if (ws !== socketRef.current) return;
+
       setIsConnected(true);
       reconnectAttemptsRef.current = 0;
 
@@ -61,15 +72,20 @@ export function useWebSocket({
     };
 
     ws.onmessage = (messageEvent) => {
+      if (ws !== socketRef.current) return;
+
       try {
         const parsedData = JSON.parse(messageEvent.data) as WebSocketEvent;
-        onMessageReceived(parsedData);
+
+        onMessageRef.current(parsedData);
       } catch (error) {
         console.error("Failed to decode incoming streaming packet:", error);
       }
     };
 
     ws.onclose = () => {
+      if (ws !== socketRef.current) return;
+
       setIsConnected(false);
       socketRef.current = null;
 
@@ -82,9 +98,11 @@ export function useWebSocket({
     };
 
     ws.onerror = (error) => {
+      if (ws !== socketRef.current) return;
+
       console.error("Client side socket lane dropped:", error);
     };
-  }, [url, roomId, userId, onMessageReceived]);
+  }, [url, roomId, userId]);
 
   useEffect(() => {
     connectRef.current = connect;
@@ -113,9 +131,10 @@ export function useWebSocket({
           socketRef.current.send(JSON.stringify(unsubscribeFrame));
         }
         socketRef.current.close();
+        socketRef.current = null;
       }
     };
-  }, [connect, roomId, userId]);
+  }, [url, connect, roomId, userId]);
 
   return { isConnected, emitEvent };
 }
