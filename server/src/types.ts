@@ -23,4 +23,16 @@ export type WebSocketEvent =
   | {
       type: "TYPING_STATUS";
       payload: { roomId: string; userId: string; isTyping: boolean };
+    }
+  | {
+      type: "ROOM_CREATED";
+      payload: {
+        recipientId: string;
+        room: {
+          id: string;
+          targetUserId: string;
+          targetUserPublicKey: string;
+          createdAt: string | Date;
+        };
+      };
     };

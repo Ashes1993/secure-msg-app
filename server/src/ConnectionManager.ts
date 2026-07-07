@@ -62,4 +62,11 @@ export class ConnectionManager {
       }
     });
   }
+
+  public sendToUser(userId: string, rawDataPayload: string): void {
+    const socket = this.userSockets.get(userId);
+    if (socket && socket.readyState === WebSocket.OPEN) {
+      socket.send(rawDataPayload);
+    }
+  }
 }

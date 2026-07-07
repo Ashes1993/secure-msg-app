@@ -38,7 +38,9 @@ httpServer.on("upgrade", (request, socket, head) => {
 
 wss.on("connection", (ws: WebSocket) => {
   ws.isAlive = true;
-  console.log("Client established authorized cryptographic socket pipe.");
+  console.log(
+    "[WS AUTH] Client established authorized cryptographic socket pipe.",
+  );
 
   let connectedUserId: string | null = null;
 
@@ -57,17 +59,23 @@ wss.on("connection", (ws: WebSocket) => {
           manager.registerConnection(connectedUserId, ws);
           manager.joinRoom(wsEvent.payload.roomId, connectedUserId);
           console.log(
-            `User ${connectedUserId} subscribed to track Frame room [${wsEvent.payload.roomId}]`,
+            `[SUBSCRIPTION] User: ${connectedUserId} subscribed to room [${wsEvent.payload.roomId}]`,
           );
           break;
 
         case "UNSUBSCRIBE":
           if (connectedUserId) {
             manager.leaveRoom(wsEvent.payload.roomId, connectedUserId);
+            console.log(
+              `[UNSUBSCRIBE] User: ${connectedUserId} unsubscribed to room [${wsEvent.payload.roomId}]`,
+            );
           }
           break;
 
         case "ENCRYPTED_MESSAGE":
+          console.log(
+            `[MESSAGE RELAY] Room: [${wsEvent.payload.roomId}] <- Sender: ${wsEvent.payload.senderId}`,
+          );
           manager.broadcastToRoom(
             wsEvent.payload.roomId,
             wsEvent.payload.senderId,
@@ -76,25 +84,39 @@ wss.on("connection", (ws: WebSocket) => {
           break;
 
         case "TYPING_STATUS":
+          console.log(
+            `[TYPING STATUS] Room: [${wsEvent.payload.roomId}] <- User: ${wsEvent.payload.userId} (Typing: ${wsEvent.payload.isTyping})`,
+          );
           manager.broadcastToRoom(
             wsEvent.payload.roomId,
             wsEvent.payload.userId,
             stringifiedPayload,
           );
           break;
+
+        case "ROOM_CREATED":
+          console.log(
+            `[ROOM SYNC] New Room Sync -> Target User: ${wsEvent.payload.recipientId}`,
+          );
+          manager.sendToUser(wsEvent.payload.recipientId, stringifiedPayload);
+          break;
       }
     } catch (parseError) {
-      console.error("Malformed websocket framse discarded:", parseError);
+      console.error(
+        "[WS ERROR] Malformed websocket frame discarded:",
+        parseError,
+      );
     }
   });
 
   ws.on("error", (error) => {
-    console.error("Socket pipeline disruption:", error.message);
+    console.error("[WS EXCEPTION] Socket pipeline disruption:", error.message);
   });
 
   ws.on("close", () => {
     if (connectedUserId) {
       manager.removeConnection(connectedUserId);
+      console.log(`[WS TEARDOWN] Session cleaned for User: ${connectedUserId}`);
     }
   });
 });
