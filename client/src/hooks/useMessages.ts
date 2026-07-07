@@ -2,13 +2,9 @@
 
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { getMessages } from "@/actions/messages";
-import { decryptMessage } from "@/lib/crypto";
 import { useAuthStore } from "@/stores/useAuthStore";
 
-export function useMessages(
-  roomId: string | null | undefined,
-  currentUserId: string,
-) {
+export function useMessages(roomId: string | null | undefined) {
   const privateKey = useAuthStore((state) => state.privateKey);
 
   const roomMessages = useInfiniteQuery({
@@ -27,34 +23,7 @@ export function useMessages(
         );
       }
 
-      return Promise.all(
-        response.data.map(async (message) => {
-          try {
-            const isSender = message.senderId === currentUserId;
-
-            const decryptedText = await decryptMessage(
-              message,
-              privateKey,
-              isSender,
-            );
-
-            return {
-              ...message,
-              encryptedContent: decryptedText,
-            };
-          } catch (err) {
-            console.error(
-              "[Hooks:useMessages] Failed to decrypt individual block message node:",
-              err,
-            );
-
-            return {
-              ...message,
-              encryptedContent: "Unable to load the messages.",
-            };
-          }
-        }),
-      );
+      return response.data;
     },
     initialPageParam: null as string | null,
     getNextPageParam: (lastPage) => {
