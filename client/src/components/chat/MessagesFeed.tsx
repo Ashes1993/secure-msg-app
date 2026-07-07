@@ -4,6 +4,7 @@ import { useRef, useEffect } from "react";
 import { Loader2, MessageSquareOff } from "lucide-react";
 import ErrorState from "../ui/ErrorState";
 import { MessageEntity } from "@/types/chat";
+import { MessageItem } from "./MessageItem";
 
 interface MessageFeedProps {
   messages: MessageEntity[];
@@ -14,34 +15,6 @@ interface MessageFeedProps {
   isFetchingNextPage: boolean;
   isRoomsLoading: boolean;
   currentUserId: string;
-}
-
-// Helper function to sanitize the message data based on recency
-function formatMessageTimestamp(dateInput: Date | string): string {
-  const date = new Date(dateInput);
-  const now = new Date();
-
-  const isToday = date.toDateString() === now.toDateString();
-
-  const yesterday = new Date(now);
-  yesterday.setDate(now.getDate() - 1);
-  const isYesterday = date.toDateString() === yesterday.toDateString();
-
-  const timeString = date.toLocaleTimeString([], {
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  });
-
-  if (isToday) return timeString;
-  if (isYesterday) return `Yesterday, ${timeString}`;
-
-  const dateString = date.toLocaleDateString([], {
-    month: "short",
-    day: "numeric",
-  });
-
-  return `${dateString}, ${timeString}`;
 }
 
 export default function MessagesFeed({
@@ -128,7 +101,7 @@ export default function MessagesFeed({
 
       {/* Chat messages layout */}
       {!isLoading && !isRoomsLoading && !error && messages.length > 0 && (
-        <div className=" overflow-y-auto min-h-0 p-4 space-y-4 bg-muted-foreground/[0.01] animate-slide-up">
+        <div className=" overflow-y-auto min-h-0 h-full p-4 space-y-4 bg-muted-foreground/[0.01] animate-slide-up">
           {/* Invisible anchor for upward scrolling detection */}
           <div
             ref={topObserverRef}
@@ -139,30 +112,13 @@ export default function MessagesFeed({
             )}
           </div>
 
-          {messages.map((message) => {
-            const isMe = message.senderId === currentUserId;
-            return (
-              <div
-                key={message.id}
-                className={`flex w-full group ${isMe ? "justify-end" : "justify-start"}`}
-              >
-                <div
-                  className={`max-w-[75%] px-4 py-3 text-sm rounded-2xl shadow-sm transition-micro break-words ${isMe ? "bg-primary text-foreground rounded-br-sm" : "bg-muted-foreground/[0.05] border border-border text-foreground rounded-bl-sm"}`}
-                >
-                  <p className="leading-relaxed font-normal selection:bg-background/20">
-                    {message.encryptedContent}
-                  </p>
-
-                  {/* Metadata Timestamp Footprints */}
-                  <div
-                    className={`w-full flex mt-1.5 opacity-60 text-[9px] font-mono ${isMe ? "justify-end text-primary-foreground/80" : "justify-start text-muted-foreground"}`}
-                  >
-                    {formatMessageTimestamp(message.createdAt)}
-                  </div>
-                </div>
-              </div>
-            );
-          })}
+          {messages.map((message) => (
+            <MessageItem
+              key={message.id}
+              message={message}
+              currentUserId={currentUserId}
+            />
+          ))}
 
           <div ref={messagesEndRef} />
         </div>
