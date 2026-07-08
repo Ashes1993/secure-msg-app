@@ -1,12 +1,13 @@
 "use client";
 
-import { getRooms } from "@/actions/rooms";
-import { useQuery } from "@tanstack/react-query";
+import { getRooms, createRoom } from "@/actions/rooms";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { decryptMessage } from "@/lib/crypto";
 import { useAuthStore } from "@/stores/useAuthStore";
 
 export function useRooms() {
   const myPrivateKey = useAuthStore((state) => state.privateKey);
+  const queryClient = useQueryClient();
 
   const rooms = useQuery({
     queryKey: ["rooms"],
@@ -81,9 +82,36 @@ export function useRooms() {
     enabled: !!myPrivateKey,
   });
 
+  const roomCreationMutation = useMutation({
+    mutationFn: async (targetUserId: string) => {
+      const response = await createRoom(targetUserId);
+      if (!response.success) {
+        throw new Error(
+          response.error || "Could not establish secure communication channel.",
+        );
+      }
+      return response.data;
+    },
+    onError: (error) => {
+      console.error(
+        "[Hook:useRooms] Room creation mutation rejected:",
+        error.message,
+      );
+    },
+    onSuccess: async (roomPayload) => {
+      if (roomPayload?.userRoom.id) {
+        await queryClient.invalidateQueries({ queryKey: ["rooms"] });
+      }
+    },
+  });
+
   return {
     rooms: rooms.data || [],
     isPending: rooms.isPending,
     error: rooms.error?.message || null,
+
+    createConversation: roomCreationMutation.mutateAsync,
+    isCreatingRoom: roomCreationMutation.isPending,
+    creationError: roomCreationMutation.error?.message || null,
   };
 }
