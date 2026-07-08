@@ -30,9 +30,18 @@ export type WebSocketEvent =
         recipientId: string;
         room: {
           id: string;
+          type: string;
+          updatedAt: Date;
           targetUserId: string;
+          targetUserUsername: string;
           targetUserPublicKey: string;
-          createdAt: string | Date;
+          lastMessage: string;
+          lastMessageSenderId: string | null;
+          lastMessageIv: string | null;
+          lastMessageSenderEncryptedKey: string | null;
+          lastMessageRecipientEncryptedKey: string | null;
+          lastMessageAt: Date | null;
+          currentUserId: string;
         };
       };
     };
