@@ -3,30 +3,11 @@
 import { auth } from "@/auth";
 import prisma from "@/lib/prisma";
 import { ActionResponse } from "@/types/actions";
-
-interface SanitizedRoom {
-  id: string;
-}
-
-interface SidebarRoom {
-  id: string;
-  type: string;
-  updatedAt: Date;
-  targetUserId: string;
-  targetUserUsername: string;
-  targetUserPublicKey: string;
-  lastMessage: string;
-  lastMessageSenderId: string | null;
-  lastMessageIv: string | null;
-  lastMessageSenderEncryptedKey: string | null;
-  lastMessageRecipientEncryptedKey: string | null;
-  lastMessageAt: Date | null;
-  currentUserId: string;
-}
+import { CreateRoomResult, RoomEntity } from "@/types/chat";
 
 export async function createRoom(
   targetUserId: string,
-): Promise<ActionResponse<SanitizedRoom | null>> {
+): Promise<ActionResponse<CreateRoomResult | null>> {
   const session = await auth();
   const currentUserId = session?.user?.id;
 
@@ -46,8 +27,19 @@ export async function createRoom(
     };
 
   try {
-    // Check if these two users already have a room
-    const currentRoom = await prisma.room.findFirst({
+    const participantSelect = {
+      select: {
+        user: {
+          select: {
+            id: true,
+            username: true,
+            publicKey: true,
+          },
+        },
+      },
+    };
+
+    const existingRoom = await prisma.room.findFirst({
       where: {
         type: "DM",
         AND: [
@@ -57,13 +49,80 @@ export async function createRoom(
       },
       select: {
         id: true,
+        type: true,
+        updatedAt: true,
+        roomParticipants: participantSelect,
+        messages: {
+          orderBy: { createdAt: "desc" },
+          take: 1,
+          select: {
+            encryptedContent: true,
+            createdAt: true,
+            senderId: true,
+            iv: true,
+            senderEncryptedKey: true,
+            recipientEncryptedKey: true,
+          },
+        },
       },
     });
 
-    if (currentRoom) {
-      return { success: true, error: null, data: currentRoom };
+    if (existingRoom) {
+      const callerParticipant = existingRoom.roomParticipants.find(
+        (p) => p.user.id === currentUserId,
+      )?.user;
+      const targetParticipant = existingRoom.roomParticipants.find(
+        (p) => p.user.id === targetUserId,
+      )?.user;
+
+      const latestMessage = existingRoom.messages[0];
+
+      const userRoom: RoomEntity = {
+        id: existingRoom.id,
+        type: existingRoom.type,
+        updatedAt: existingRoom.updatedAt,
+        targetUserId: targetParticipant?.id || targetUserId,
+        targetUserUsername: targetParticipant?.username || "Unknown User",
+        targetUserPublicKey: targetParticipant?.publicKey || "null",
+        lastMessage:
+          latestMessage?.encryptedContent || "No messages yet. Say hello!",
+        lastMessageSenderId: latestMessage?.senderId || null,
+        lastMessageIv: latestMessage?.iv || null,
+        lastMessageSenderEncryptedKey:
+          latestMessage?.senderEncryptedKey || null,
+        lastMessageRecipientEncryptedKey:
+          latestMessage?.recipientEncryptedKey || null,
+        lastMessageAt: latestMessage?.createdAt || null,
+        currentUserId,
+      };
+
+      const recipientRoom: RoomEntity = {
+        id: existingRoom.id,
+        type: existingRoom.type,
+        updatedAt: existingRoom.updatedAt,
+        targetUserId: callerParticipant?.id || currentUserId,
+        targetUserUsername: callerParticipant?.username || "Unknown User",
+        targetUserPublicKey: callerParticipant?.publicKey || "null",
+        lastMessage:
+          latestMessage?.encryptedContent || "No messages yet. Say hello!",
+        lastMessageSenderId: latestMessage?.senderId || null,
+        lastMessageIv: latestMessage?.iv || null,
+        lastMessageSenderEncryptedKey:
+          latestMessage?.senderEncryptedKey || null,
+        lastMessageRecipientEncryptedKey:
+          latestMessage?.recipientEncryptedKey || null,
+        lastMessageAt: latestMessage?.createdAt || null,
+        currentUserId: targetUserId,
+      };
+
+      return {
+        success: true,
+        error: null,
+        data: { userRoom, recipientRoom },
+      };
     }
 
+    // 2. Create new room if it doesn't exist
     const newRoom = await prisma.room.create({
       data: {
         type: "DM",
@@ -73,10 +132,56 @@ export async function createRoom(
       },
       select: {
         id: true,
+        type: true,
+        updatedAt: true,
+        roomParticipants: participantSelect,
       },
     });
 
-    return { success: true, error: null, data: newRoom };
+    const callerParticipant = newRoom.roomParticipants.find(
+      (p) => p.user.id === currentUserId,
+    )?.user;
+    const targetParticipant = newRoom.roomParticipants.find(
+      (p) => p.user.id === targetUserId,
+    )?.user;
+
+    const userRoom: RoomEntity = {
+      id: newRoom.id,
+      type: newRoom.type,
+      updatedAt: newRoom.updatedAt,
+      targetUserId: targetParticipant?.id || targetUserId,
+      targetUserUsername: targetParticipant?.username || "Unknown User",
+      targetUserPublicKey: targetParticipant?.publicKey || "null",
+      lastMessage: "No messages yet. Say hello!",
+      lastMessageSenderId: null,
+      lastMessageIv: null,
+      lastMessageSenderEncryptedKey: null,
+      lastMessageRecipientEncryptedKey: null,
+      lastMessageAt: null,
+      currentUserId,
+    };
+
+    const recipientRoom: RoomEntity = {
+      id: newRoom.id,
+      type: newRoom.type,
+      updatedAt: newRoom.updatedAt,
+      targetUserId: callerParticipant?.id || currentUserId,
+      targetUserUsername: callerParticipant?.username || "Unknown User",
+      targetUserPublicKey: callerParticipant?.publicKey || "null",
+      lastMessage: "No messages yet. Say hello!",
+      lastMessageSenderId: null,
+      lastMessageIv: null,
+      lastMessageSenderEncryptedKey: null,
+      lastMessageRecipientEncryptedKey: null,
+      lastMessageAt: null,
+      currentUserId: targetUserId,
+    };
+
+    return {
+      success: true,
+      error: null,
+      data: { userRoom, recipientRoom },
+    };
   } catch (err) {
     console.error(
       "[ServerAction:createRoom] Database exception encountered during creating a new room:",
@@ -91,9 +196,7 @@ export async function createRoom(
   }
 }
 
-export async function getRooms(): Promise<
-  ActionResponse<SidebarRoom[] | null>
-> {
+export async function getRooms(): Promise<ActionResponse<RoomEntity[] | null>> {
   const session = await auth();
   const currentUserId = session?.user?.id;
 
@@ -155,7 +258,7 @@ export async function getRooms(): Promise<
       },
     });
 
-    const sanitizedRooms: SidebarRoom[] = rooms.map((room) => {
+    const sanitizedRooms: RoomEntity[] = rooms.map((room) => {
       const targetParticipant = room.roomParticipants[0]?.user;
       const latestMessage = room.messages[0];
 
