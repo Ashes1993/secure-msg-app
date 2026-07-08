@@ -2,6 +2,7 @@ import Sidebar from "@/components/sidebar/Sidebar";
 import React from "react";
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
+import { SessionProvider } from "next-auth/react";
 
 export default async function DashboardLayout({
   children,
@@ -9,16 +10,23 @@ export default async function DashboardLayout({
   children: React.ReactNode;
 }) {
   const session = await auth();
-  const user = session?.user;
+  const userPayload = session?.user
+    ? {
+        id: session.user.id ?? "",
+        username: session.user.username ?? "",
+      }
+    : null;
 
-  if (!user) {
+  if (!userPayload) {
     redirect("/login");
   }
 
   return (
-    <div className="w-full h-full bg-background text-foreground flex gap-4 overflow-hidden">
-      <Sidebar username={user.username} />
-      {children}
-    </div>
+    <SessionProvider session={session}>
+      <div className="w-full h-full bg-background text-foreground flex gap-4 overflow-hidden">
+        <Sidebar />
+        {children}
+      </div>
+    </SessionProvider>
   );
 }
