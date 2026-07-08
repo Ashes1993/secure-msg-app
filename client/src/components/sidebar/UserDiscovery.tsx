@@ -3,18 +3,39 @@
 import { useUserDiscovery } from "@/hooks/useUserDiscovery";
 import { useState } from "react";
 import { Search, X, Loader2, Plus } from "lucide-react";
+import { useRooms } from "@/hooks/useRooms";
+import { WebSocketEvent } from "@/hooks/useWebSocket";
 
-export default function UserDiscovery() {
+interface UserDiscoveryProps {
+  emitEvent: (event: WebSocketEvent) => void;
+}
+
+export default function UserDiscovery({ emitEvent }: UserDiscoveryProps) {
   const [searchQuery, setSearchQuery] = useState<string>("");
 
-  const {
-    users,
-    isSearching,
-    searchError,
-    createConversation,
-    isCreatingRoom,
-    creationError,
-  } = useUserDiscovery(searchQuery);
+  const { users, isSearching, searchError } = useUserDiscovery(searchQuery);
+
+  const { createConversation, isCreatingRoom, creationError } = useRooms();
+
+  const handleCreateRoom = async (targetUserId: string) => {
+    try {
+      const newRoom = await createConversation(targetUserId);
+
+      if (newRoom) {
+        emitEvent({
+          type: "ROOM_CREATED",
+          payload: {
+            recipientId: targetUserId,
+            room: newRoom.recipientRoom,
+          },
+        });
+      }
+
+      setSearchQuery("");
+    } catch (err) {
+      console.error("[Client:UserDiscovery] Failed to create room:", err);
+    }
+  };
 
   return (
     <div className="relative w-full">
@@ -72,10 +93,7 @@ export default function UserDiscovery() {
               >
                 <button
                   type="button"
-                  onClick={() => {
-                    createConversation(user.id);
-                    setSearchQuery("");
-                  }}
+                  onClick={() => handleCreateRoom(user.id)}
                   disabled={isCreatingRoom}
                   className="w-full flex items-center gap-3 p-2.5 text-left cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed transition-micro"
                 >
