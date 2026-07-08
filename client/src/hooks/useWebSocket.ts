@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from "react";
+import { RoomEntity } from "@/types/chat";
+import { useAuthenticatedUser } from "./useAuthenticatedUser";
 
 export type WebSocketEvent =
   | { type: "SUBSCRIBE"; payload: { roomId: string; userId: string } }
@@ -19,22 +21,29 @@ export type WebSocketEvent =
   | {
       type: "TYPING_STATUS";
       payload: { roomId: string; userId: string; isTyping: boolean };
+    }
+  | {
+      type: "ROOM_CREATED";
+      payload: {
+        recipientId: string;
+        room: RoomEntity;
+      };
     };
 
 interface UseWebSocketOptions {
   url: string;
   roomId: string;
-  userId: string;
   onMessageReceived: (event: WebSocketEvent) => void;
 }
 
 export function useWebSocket({
   url,
   roomId,
-  userId,
   onMessageReceived,
 }: UseWebSocketOptions) {
   const [isConnected, setIsConnected] = useState(false);
+  const userId = useAuthenticatedUser().user?.id;
+
   const socketRef = useRef<WebSocket | null>(null);
   const reconnectAttemptsRef = useRef(0);
   const maxReconnectAttempts = 5;
@@ -51,6 +60,10 @@ export function useWebSocket({
       socketRef.current?.readyState === WebSocket.CONNECTING ||
       socketRef.current?.readyState === WebSocket.OPEN
     ) {
+      return;
+    }
+
+    if (!userId) {
       return;
     }
 
@@ -119,6 +132,10 @@ export function useWebSocket({
   }, []);
 
   useEffect(() => {
+    if (!userId) {
+      return;
+    }
+
     connect();
 
     return () => {
