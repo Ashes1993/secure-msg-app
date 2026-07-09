@@ -94,7 +94,6 @@ export default function ChatContainer({
   const { emitEvent, isConnected } = useWebSocket({
     url: process.env.NEXT_PUBLIC_WS_URL ?? "ws://localhost:8080",
     roomId,
-    userId: currentUserId,
     onMessageReceived: onMessageReceivedHandler,
   });
 
