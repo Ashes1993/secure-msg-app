@@ -1,8 +1,9 @@
 "use client";
 
-import { useUserDiscovery } from "@/hooks/useUserDiscovery";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Search, X, Loader2, Plus } from "lucide-react";
+import { useUserDiscovery } from "@/hooks/useUserDiscovery";
 import { useRooms } from "@/hooks/useRooms";
 import { WebSocketEvent } from "@/hooks/useWebSocket";
 
@@ -11,10 +12,9 @@ interface UserDiscoveryProps {
 }
 
 export default function UserDiscovery({ emitEvent }: UserDiscoveryProps) {
+  const router = useRouter();
   const [searchQuery, setSearchQuery] = useState<string>("");
-
   const { users, isSearching, searchError } = useUserDiscovery(searchQuery);
-
   const { createConversation, isCreatingRoom, creationError } = useRooms();
 
   const handleCreateRoom = async (targetUserId: string) => {
@@ -32,6 +32,7 @@ export default function UserDiscovery({ emitEvent }: UserDiscoveryProps) {
       }
 
       setSearchQuery("");
+      router.push(`/chat/${newRoom?.recipientRoom.id}`);
     } catch (err) {
       console.error("[Client:UserDiscovery] Failed to create room:", err);
     }
