@@ -28,3 +28,26 @@ export interface CreateRoomResult {
   userRoom: RoomEntity;
   recipientRoom: RoomEntity;
 }
+
+export type WebSocketEvent =
+  | { type: "SUBSCRIBE"; payload: { roomId?: string; userId: string } }
+  | { type: "UNSUBSCRIBE"; payload: { roomId?: string; userId: string } }
+  | {
+      type: "ENCRYPTED_MESSAGE";
+      payload: {
+        recipientId?: string;
+        roomId: string;
+        message: MessageEntity;
+      };
+    }
+  | {
+      type: "TYPING_STATUS";
+      payload: { roomId: string; userId: string; isTyping: boolean };
+    }
+  | {
+      type: "ROOM_CREATED";
+      payload: {
+        recipientId: string;
+        room: RoomEntity;
+      };
+    };
