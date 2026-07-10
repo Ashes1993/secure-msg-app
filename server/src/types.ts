@@ -1,23 +1,26 @@
 export type WebSocketEvent =
   | {
       type: "SUBSCRIBE";
-      payload: { roomId: string; userId: string };
+      payload: { roomId?: string; userId: string };
     }
   | {
       type: "UNSUBSCRIBE";
-      payload: { roomId: string; userId: string };
+      payload: { roomId?: string; userId: string };
     }
   | {
       type: "ENCRYPTED_MESSAGE";
       payload: {
-        id: string;
+        recipientId?: string;
         roomId: string;
-        senderId: string;
-        encryptedContent: string;
-        iv: string;
-        senderEncryptedKey: string;
-        recipientEncryptedKey: string;
-        createdAt: Date;
+        message: {
+          id: string;
+          senderId: string;
+          encryptedContent: string;
+          iv: string;
+          senderEncryptedKey: string;
+          recipientEncryptedKey: string;
+          createdAt: Date;
+        };
       };
     }
   | {
