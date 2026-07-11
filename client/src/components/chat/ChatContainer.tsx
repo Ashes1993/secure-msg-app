@@ -1,17 +1,16 @@
 "use client";
 
-import { useCallback } from "react";
+import { useEffect } from "react";
 import { useMessages } from "@/hooks/useMessages";
 import { useRooms } from "@/hooks/useRooms";
 import { useQueryClient, InfiniteData } from "@tanstack/react-query";
-import { useWebSocket } from "@/hooks/useWebSocket";
 import { useChatStore } from "@/stores/useChatStore";
 import CreateMessageForm from "./CreateMessageForm";
 import ChatHeader from "./ChatHeader";
 import ErrorState from "../ui/ErrorState";
 import MessagesFeed from "./MessagesFeed";
-import { WebSocketEvent } from "@/hooks/useWebSocket";
-import { MessageEntity } from "@/types/chat";
+import { useWebSocketContext } from "@/providers/WebSocketProvider";
+import { MessageEntity, WebSocketEvent } from "@/types/chat";
 
 interface ChatContainerProps {
   roomId: string;
@@ -39,63 +38,64 @@ export default function ChatContainer({
   const setTypingUser = useChatStore((state) => state.setTypingUser);
   const removeTypingUser = useChatStore((state) => state.removeTypingUser);
 
-  const onMessageReceivedHandler = useCallback(
-    (wsEvent: WebSocketEvent) => {
-      if (wsEvent.type === "ENCRYPTED_MESSAGE") {
-        console.log("=== [TRACE 5: STATE INGESTION] ===");
-        console.log(
-          "Inbound payload validated by state controller:",
-          wsEvent.payload,
-        );
-        console.log(
-          "Current Active Room ID context in component viewport:",
-          roomId,
-        );
+  const { emitEvent, isConnected, subscribeToEvents } = useWebSocketContext();
 
-        // Check if the payload room matches your active room state before executing the cache updater
-        if (wsEvent.payload.roomId !== roomId) {
-          console.warn(
-            `!!! [TRACE 5 ALERT] !!! Cache update skipped: Payload Room ID (${wsEvent.payload.roomId}) does not match current viewport Room ID (${roomId})`,
-          );
+  // Subscribe to room when ChatContainer mounts
+  useEffect(() => {
+    if (!isConnected) return;
+
+    emitEvent({
+      type: "SUBSCRIBE",
+      payload: { roomId, userId: currentUserId },
+    });
+
+    return () => {
+      emitEvent({
+        type: "UNSUBSCRIBE",
+        payload: { roomId, userId: currentUserId },
+      });
+    };
+  }, [roomId, currentUserId, emitEvent, isConnected]);
+
+  // Listen for global WebSocket events
+  useEffect(() => {
+    const unsubscribe = subscribeToEvents((wsEvent: WebSocketEvent) => {
+      if (wsEvent.type === "ENCRYPTED_MESSAGE") {
+        const { roomId: msgRoomId, message } = wsEvent.payload;
+
+        if (msgRoomId !== roomId) return;
+
+        queryClient.setQueryData<InfiniteData<MessageEntity[]>>(
+          ["messages", roomId],
+          (oldData) => {
+            if (!oldData) return oldData;
+            return {
+              ...oldData,
+              pages: oldData.pages.map((page, index: number) => {
+                if (index === 0) {
+                  return [message, ...page];
+                }
+                return page;
+              }),
+            };
+          },
+        );
+      }
+
+      if (
+        wsEvent.type === "TYPING_STATUS" &&
+        wsEvent.payload.roomId === roomId
+      ) {
+        if (wsEvent.payload.isTyping) {
+          setTypingUser(wsEvent.payload.userId);
+        } else {
+          removeTypingUser(wsEvent.payload.userId);
         }
       }
+    });
 
-      switch (wsEvent.type) {
-        case "ENCRYPTED_MESSAGE":
-          queryClient.setQueryData<InfiniteData<MessageEntity[]>>(
-            ["messages", roomId],
-            (oldData) => {
-              if (!oldData) return oldData;
-              return {
-                ...oldData,
-                pages: oldData.pages.map((page, index: number) => {
-                  if (index === 0) {
-                    return [wsEvent.payload as MessageEntity, ...page];
-                  }
-                  return page;
-                }),
-              };
-            },
-          );
-          break;
-
-        case "TYPING_STATUS":
-          if (wsEvent.payload.isTyping) {
-            setTypingUser(wsEvent.payload.userId);
-          } else {
-            removeTypingUser(wsEvent.payload.userId);
-          }
-          break;
-      }
-    },
-    [queryClient, roomId, setTypingUser, removeTypingUser],
-  );
-
-  const { emitEvent, isConnected } = useWebSocket({
-    url: process.env.NEXT_PUBLIC_WS_URL ?? "ws://localhost:8080",
-    roomId,
-    onMessageReceived: onMessageReceivedHandler,
-  });
+    return () => unsubscribe();
+  }, [roomId, queryClient, setTypingUser, removeTypingUser, subscribeToEvents]);
 
   if (!targetPublicKey && !isLoading && !isRoomsLoading) {
     return (

@@ -3,7 +3,7 @@
 import { useCreateMessage } from "@/hooks/useCreateMessage";
 import { useState, useRef, useEffect } from "react";
 import { SendHorizontal, Loader2 } from "lucide-react";
-import { WebSocketEvent } from "@/hooks/useWebSocket";
+import { WebSocketEvent } from "@/types/chat";
 
 interface CreateMessageFormProps {
   roomId: string;
@@ -56,8 +56,6 @@ export default function CreateMessageForm({
       },
       {
         onSuccess: (newMessageData) => {
-          console.log("=== [TRACE 1: ORIGIN EMIT] ===");
-          console.log("Database response (newMessageData):", newMessageData);
           setMessage("");
           if (textareaRef.current) textareaRef.current.style.height = "auto";
 
@@ -72,23 +70,23 @@ export default function CreateMessageForm({
           }
 
           if (!newMessageData) {
-            console.warn(
-              "!!! [TRACE 1 ALERT] !!! Message execution halted: newMessageData is empty.",
-            );
+            console.warn("Message execution stopped: newMessageData is empty.");
             return;
           }
 
           const outboundPayload = {
             type: "ENCRYPTED_MESSAGE" as const,
             payload: {
-              id: newMessageData.id,
               roomId,
-              senderId: newMessageData.senderId,
-              encryptedContent: newMessageData.encryptedContent,
-              iv: newMessageData.iv,
-              senderEncryptedKey: newMessageData.senderEncryptedKey,
-              recipientEncryptedKey: newMessageData.recipientEncryptedKey,
-              createdAt: newMessageData.createdAt,
+              message: {
+                id: newMessageData.id,
+                senderId: newMessageData.senderId,
+                encryptedContent: newMessageData.encryptedContent,
+                iv: newMessageData.iv,
+                senderEncryptedKey: newMessageData.senderEncryptedKey,
+                recipientEncryptedKey: newMessageData.recipientEncryptedKey,
+                createdAt: newMessageData.createdAt,
+              },
             },
           };
 
