@@ -57,14 +57,21 @@ wss.on("connection", (ws: WebSocket) => {
         case "SUBSCRIBE":
           connectedUserId = wsEvent.payload.userId;
           manager.registerConnection(connectedUserId, ws);
-          manager.joinRoom(wsEvent.payload.roomId, connectedUserId);
-          console.log(
-            `[SUBSCRIPTION] User: ${connectedUserId} subscribed to room [${wsEvent.payload.roomId}]`,
-          );
+          if (wsEvent.payload.roomId) {
+            manager.joinRoom(wsEvent.payload.roomId, connectedUserId);
+            console.log(
+              `[SUBSCRIPTION] User: ${connectedUserId} subscribed to room [${wsEvent.payload.roomId}]`,
+            );
+          } else {
+            console.log(
+              `[SUBSCRIPTION] User: ${connectedUserId} connected globally.`,
+            );
+          }
+
           break;
 
         case "UNSUBSCRIBE":
-          if (connectedUserId) {
+          if (connectedUserId && wsEvent.payload.roomId) {
             manager.leaveRoom(wsEvent.payload.roomId, connectedUserId);
             console.log(
               `[UNSUBSCRIBE] User: ${connectedUserId} unsubscribed to room [${wsEvent.payload.roomId}]`,
@@ -74,11 +81,11 @@ wss.on("connection", (ws: WebSocket) => {
 
         case "ENCRYPTED_MESSAGE":
           console.log(
-            `[MESSAGE RELAY] Room: [${wsEvent.payload.roomId}] <- Sender: ${wsEvent.payload.senderId}`,
+            `[MESSAGE RELAY] Room: [${wsEvent.payload.roomId}] <- Sender: ${wsEvent.payload.message.senderId}`,
           );
           manager.broadcastToRoom(
             wsEvent.payload.roomId,
-            wsEvent.payload.senderId,
+            wsEvent.payload.message.senderId,
             stringifiedPayload,
           );
           break;
