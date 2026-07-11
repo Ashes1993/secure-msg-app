@@ -3,6 +3,7 @@ import React from "react";
 import { auth } from "@/auth";
 import { redirect } from "next/navigation";
 import { SessionProvider } from "next-auth/react";
+import { WebSocketProvider } from "@/providers/WebSocketProvider";
 
 export default async function DashboardLayout({
   children,
@@ -23,10 +24,12 @@ export default async function DashboardLayout({
 
   return (
     <SessionProvider session={session}>
-      <div className="w-full h-full bg-background text-foreground flex gap-4 overflow-hidden">
-        <Sidebar />
-        {children}
-      </div>
+      <WebSocketProvider>
+        <div className="w-full h-full bg-background text-foreground flex gap-4 overflow-hidden">
+          <Sidebar />
+          {children}
+        </div>
+      </WebSocketProvider>
     </SessionProvider>
   );
 }
