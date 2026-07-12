@@ -1,114 +1,22 @@
 "use client";
 
 import { useParams } from "next/navigation";
+import { useAuthenticatedUser } from "@/hooks/useAuthenticatedUser";
+import { useWebSocketContext } from "@/providers/WebSocketProvider";
 import { User, Settings } from "lucide-react";
 import RoomList from "./RoomList";
 import UserDiscovery from "./UserDiscovery";
 import LogoutButton from "../auth/LogoutButton";
-import { useAuthenticatedUser } from "@/hooks/useAuthenticatedUser";
-import { useWebSocket, WebSocketEvent } from "@/hooks/useWebSocket";
-import { useQueryClient } from "@tanstack/react-query";
-import { useCallback } from "react";
-import { RoomEntity } from "@/types/chat";
-import { useAuthStore } from "@/stores/useAuthStore";
-import { decryptMessage } from "@/lib/crypto";
-import { ActionResponse } from "@/types/actions";
 
 export default function Sidebar() {
   const params = useParams();
-  const queryClient = useQueryClient();
-
   const isChatActive = !!params.roomId;
   const user = useAuthenticatedUser().user;
-  const myPrivateKey = useAuthStore((state) => state.privateKey);
-
-  const currentUserId = user?.id;
-
-  const onGlobalEventReceived = useCallback(
-    (wsEvent: WebSocketEvent) => {
-      // Handle incoming room creation
-      if (wsEvent.type === "ROOM_CREATED") {
-        queryClient.setQueryData<RoomEntity[]>(["rooms"], (oldRooms = []) => {
-          if (oldRooms.some((room) => room.id === wsEvent.payload.room.id)) {
-            return oldRooms;
-          }
-          return [wsEvent.payload.room, ...oldRooms];
-        });
-      }
-
-      // Handle incoming real-time encrypted messages
-      if (wsEvent.type === "ENCRYPTED_MESSAGE") {
-        (async () => {
-          const {
-            roomId,
-            encryptedContent,
-            senderEncryptedKey,
-            recipientEncryptedKey,
-            iv,
-            senderId,
-            createdAt,
-          } = wsEvent.payload;
-
-          let plaintext = "New message received";
-          if (myPrivateKey) {
-            try {
-              const isSender = senderId === currentUserId;
-              plaintext = await decryptMessage(
-                {
-                  encryptedContent,
-                  senderEncryptedKey,
-                  recipientEncryptedKey,
-                  iv,
-                },
-                myPrivateKey,
-                isSender,
-              );
-            } catch {
-              plaintext = "Unable to load message.";
-            }
-          }
-
-          queryClient.setQueryData<ActionResponse<RoomEntity[] | null>>(
-            ["rooms"],
-            (oldResponse) => {
-              if (!oldResponse || !oldResponse.data) return oldResponse;
-
-              const rooms = oldResponse.data;
-              const targetIndex = rooms.findIndex((r) => r.id === roomId);
-              if (targetIndex === -1) return oldResponse;
-
-              const updatedRoom: RoomEntity = {
-                ...rooms[targetIndex],
-                lastMessage: plaintext,
-                lastMessageAt: createdAt,
-                lastMessageSenderId: senderId,
-                lastMessageIv: iv,
-                lastMessageSenderEncryptedKey: senderEncryptedKey,
-                lastMessageRecipientEncryptedKey: recipientEncryptedKey,
-              };
-
-              const remainingRooms = rooms.filter((r) => r.id !== roomId);
-              return {
-                ...oldResponse,
-                data: [updatedRoom, ...remainingRooms],
-              };
-            },
-          );
-        })();
-      }
-    },
-    [queryClient, myPrivateKey, currentUserId],
-  );
-
-  const { emitEvent } = useWebSocket({
-    url: process.env.NEXT_PUBLIC_WS_URL ?? "ws://localhost:8080",
-    roomId: "GLOBAL_SYNC_CHANNEL",
-    onMessageReceived: onGlobalEventReceived,
-  });
+  const { emitEvent } = useWebSocketContext();
 
   return (
     <aside
-      className={`flex-col w-full md:w-80 h-full bg-background p-4 border border-border rounded-xl shadow-sm transition-micro duration-200 ${isChatActive ? "hidden md:flex" : "flex"}`}
+      className={`flex-col w-full md:w-90 h-full bg-background p-4 border border-border rounded-xl shadow-sm transition-micro duration-200 ${isChatActive ? "hidden md:flex" : "flex"}`}
     >
       <div className="flex items-center gap-3 p-2.5 bg-muted-foreground/[0.03] border border-border rounded-xl mb-4">
         <div className="w-9 h-9 rounded-full bg-muted-foreground/[0.1] flex items-center justify-center text-muted-foreground shrink-0">
