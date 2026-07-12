@@ -8,6 +8,7 @@ import { WebSocketEvent } from "@/types/chat";
 interface CreateMessageFormProps {
   roomId: string;
   targetPublicKey: string | undefined;
+  targetId: string | undefined;
   isDisabled: boolean;
   currentUserId: string;
   emitEvent: (event: WebSocketEvent) => void;
@@ -16,6 +17,7 @@ interface CreateMessageFormProps {
 export default function CreateMessageForm({
   roomId,
   targetPublicKey,
+  targetId,
   isDisabled,
   currentUserId,
   emitEvent,
@@ -78,6 +80,7 @@ export default function CreateMessageForm({
             type: "ENCRYPTED_MESSAGE" as const,
             payload: {
               roomId,
+              recipientId: targetId,
               message: {
                 id: newMessageData.id,
                 senderId: newMessageData.senderId,

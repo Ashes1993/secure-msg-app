@@ -32,6 +32,7 @@ export default function ChatContainer({
   const { rooms, isPending: isRoomsLoading } = useRooms();
   const activeRoom = rooms?.find((room) => room.id === roomId);
   const targetPublicKey = activeRoom?.targetUserPublicKey;
+  const targetId = activeRoom?.targetUserId;
 
   const queryClient = useQueryClient();
 
@@ -132,6 +133,7 @@ export default function ChatContainer({
         <CreateMessageForm
           roomId={roomId}
           targetPublicKey={targetPublicKey}
+          targetId={targetId}
           isDisabled={isRoomsLoading || !targetPublicKey}
           currentUserId={currentUserId}
           emitEvent={emitEvent}
