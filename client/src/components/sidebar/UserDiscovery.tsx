@@ -5,7 +5,7 @@ import { useState } from "react";
 import { Search, X, Loader2, Plus } from "lucide-react";
 import { useUserDiscovery } from "@/hooks/useUserDiscovery";
 import { useRooms } from "@/hooks/useRooms";
-import { WebSocketEvent } from "@/hooks/useWebSocket";
+import { WebSocketEvent } from "@/types/chat";
 
 interface UserDiscoveryProps {
   emitEvent: (event: WebSocketEvent) => void;
