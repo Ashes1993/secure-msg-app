@@ -80,14 +80,21 @@ wss.on("connection", (ws: WebSocket) => {
           break;
 
         case "ENCRYPTED_MESSAGE":
+          const { roomId, message, recipientId } = wsEvent.payload;
+          const senderId = message.senderId;
+
           console.log(
-            `[MESSAGE RELAY] Room: [${wsEvent.payload.roomId}] <- Sender: ${wsEvent.payload.message.senderId}`,
+            `[MESSAGE RELAY] Room: [${roomId}] <- Sender: ${senderId}`,
           );
-          manager.broadcastToRoom(
-            wsEvent.payload.roomId,
-            wsEvent.payload.message.senderId,
-            stringifiedPayload,
-          );
+          manager.broadcastToRoom(roomId, senderId, stringifiedPayload);
+
+          // In case the recipient exists and is NOT currently viewing this room
+          if (recipientId && !manager.isUserInRoom(roomId, recipientId)) {
+            console.log(
+              `[MESSAGE RELAY] Recipient ${recipientId} is outside room [${roomId}].`,
+            );
+            manager.sendToUser(recipientId, stringifiedPayload);
+          }
           break;
 
         case "TYPING_STATUS":

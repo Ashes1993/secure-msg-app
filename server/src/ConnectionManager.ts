@@ -63,6 +63,11 @@ export class ConnectionManager {
     });
   }
 
+  public isUserInRoom(roomId: string, userId: string): boolean {
+    const participants = this.roomParticipants.get(roomId);
+    return participants ? participants.has(userId) : false;
+  }
+
   public sendToUser(userId: string, rawDataPayload: string): void {
     const socket = this.userSockets.get(userId);
     if (socket && socket.readyState === WebSocket.OPEN) {
