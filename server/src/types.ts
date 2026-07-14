@@ -47,4 +47,13 @@ export type WebSocketEvent =
           currentUserId: string;
         };
       };
+    }
+  | {
+      type: "MARK_READ";
+      payload: {
+        roomId: string;
+        readerId: string;
+        lastReadMessageId: string;
+        recipientId?: string;
+      };
     };

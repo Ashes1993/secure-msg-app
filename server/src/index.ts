@@ -54,7 +54,7 @@ wss.on("connection", (ws: WebSocket) => {
       const wsEvent = JSON.parse(stringifiedPayload) as WebSocketEvent;
 
       switch (wsEvent.type) {
-        case "SUBSCRIBE":
+        case "SUBSCRIBE": {
           connectedUserId = wsEvent.payload.userId;
           manager.registerConnection(connectedUserId, ws);
           if (wsEvent.payload.roomId) {
@@ -67,10 +67,10 @@ wss.on("connection", (ws: WebSocket) => {
               `[SUBSCRIPTION] User: ${connectedUserId} connected globally.`,
             );
           }
-
           break;
+        }
 
-        case "UNSUBSCRIBE":
+        case "UNSUBSCRIBE": {
           if (connectedUserId && wsEvent.payload.roomId) {
             manager.leaveRoom(wsEvent.payload.roomId, connectedUserId);
             console.log(
@@ -78,8 +78,9 @@ wss.on("connection", (ws: WebSocket) => {
             );
           }
           break;
+        }
 
-        case "ENCRYPTED_MESSAGE":
+        case "ENCRYPTED_MESSAGE": {
           const { roomId, message, recipientId } = wsEvent.payload;
           const senderId = message.senderId;
 
@@ -96,8 +97,9 @@ wss.on("connection", (ws: WebSocket) => {
             manager.sendToUser(recipientId, stringifiedPayload);
           }
           break;
+        }
 
-        case "TYPING_STATUS":
+        case "TYPING_STATUS": {
           console.log(
             `[TYPING STATUS] Room: [${wsEvent.payload.roomId}] <- User: ${wsEvent.payload.userId} (Typing: ${wsEvent.payload.isTyping})`,
           );
@@ -107,13 +109,30 @@ wss.on("connection", (ws: WebSocket) => {
             stringifiedPayload,
           );
           break;
+        }
 
-        case "ROOM_CREATED":
+        case "ROOM_CREATED": {
           console.log(
             `[ROOM SYNC] New Room Sync -> Target User: ${wsEvent.payload.recipientId}`,
           );
           manager.sendToUser(wsEvent.payload.recipientId, stringifiedPayload);
           break;
+        }
+
+        case "MARK_READ": {
+          const { roomId, readerId, lastReadMessageId, recipientId } =
+            wsEvent.payload;
+
+          console.log(
+            `[READ MESSAGE STATUS] Message ${lastReadMessageId} was read by ${readerId}`,
+          );
+          manager.broadcastToRoom(roomId, readerId, stringifiedPayload);
+
+          if (recipientId && !manager.isUserInRoom(roomId, recipientId)) {
+            manager.sendToUser(recipientId, stringifiedPayload);
+          }
+          break;
+        }
       }
     } catch (parseError) {
       console.error(
