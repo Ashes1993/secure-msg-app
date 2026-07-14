@@ -29,6 +29,12 @@ export interface CreateRoomResult {
   recipientRoom: RoomEntity;
 }
 
+export interface MarkAsRead {
+  roomId: string;
+  lastReadAt: Date | null;
+  lastReadMessageId?: string | null;
+}
+
 export type WebSocketEvent =
   | { type: "SUBSCRIBE"; payload: { roomId?: string; userId: string } }
   | { type: "UNSUBSCRIBE"; payload: { roomId?: string; userId: string } }

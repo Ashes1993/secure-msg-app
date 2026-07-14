@@ -3,7 +3,7 @@
 import { auth } from "@/auth";
 import prisma from "@/lib/prisma";
 import { ActionResponse } from "@/types/actions";
-import { CreateRoomResult, RoomEntity } from "@/types/chat";
+import { CreateRoomResult, RoomEntity, MarkAsRead } from "@/types/chat";
 
 export async function createRoom(
   targetUserId: string,
@@ -286,7 +286,7 @@ export async function getRooms(): Promise<ActionResponse<RoomEntity[] | null>> {
 
     return { success: true, error: null, data: sanitizedRooms };
   } catch (err) {
-    console.log(
+    console.error(
       "[ServerAction:getRooms] Database exception encountered during retrieving the rooms:",
       err,
     );
@@ -294,6 +294,61 @@ export async function getRooms(): Promise<ActionResponse<RoomEntity[] | null>> {
       success: false,
       error:
         "Unable to retrieve list of rooms due to a system failure. Please try again shortly.",
+      data: null,
+    };
+  }
+}
+
+export async function markAsRead(
+  roomId: string,
+  lastReadMessageId?: string,
+): Promise<ActionResponse<MarkAsRead | null>> {
+  const session = await auth();
+  const currentUserId = session?.user?.id;
+
+  if (!currentUserId)
+    return {
+      success: false,
+      error: "Authentication session expired. Please sign in again.",
+      data: null,
+    };
+
+  if (!roomId) {
+    return {
+      success: false,
+      error:
+        "Failed to receive the room ID. Please refresh and try again shortly.",
+      data: null,
+    };
+  }
+
+  try {
+    const updatedParticipant = await prisma.roomParticipant.update({
+      where: {
+        userId_roomId: {
+          userId: currentUserId,
+          roomId,
+        },
+      },
+      data: {
+        lastReadAt: new Date(),
+        lastReadMessageId,
+      },
+    });
+    const sanitizedData = {
+      roomId: updatedParticipant.roomId,
+      lastReadAt: updatedParticipant.lastReadAt,
+      lastReadMessageId: updatedParticipant.lastReadMessageId,
+    };
+    return { success: true, error: null, data: sanitizedData };
+  } catch (err) {
+    console.error(
+      "[ServerAction:markAsRead] Database exception encountered when updating the last read fields:",
+      err,
+    );
+    return {
+      success: false,
+      error: "Unable to update the database. Please try again shortly.",
       data: null,
     };
   }
