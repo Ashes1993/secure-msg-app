@@ -38,8 +38,18 @@ export interface MarkAsRead {
 }
 
 export type WebSocketEvent =
-  | { type: "SUBSCRIBE"; payload: { roomId?: string; userId: string } }
+  | {
+      type: "SUBSCRIBE";
+      payload: { roomId?: string; userId: string; targetUserId?: string };
+    }
   | { type: "UNSUBSCRIBE"; payload: { roomId?: string; userId: string } }
+  | {
+      type: "USER_STATUS_CHANGE";
+      payload: {
+        userId: string;
+        isOnline: boolean;
+      };
+    }
   | {
       type: "ENCRYPTED_MESSAGE";
       payload: {

@@ -39,6 +39,13 @@ export default function ChatContainer({
 
   const setTypingUser = useChatStore((state) => state.setTypingUser);
   const removeTypingUser = useChatStore((state) => state.removeTypingUser);
+  const setUserOnlineStatus = useChatStore(
+    (state) => state.setUserOnlineStatus,
+  );
+
+  const isTargetOnline = useChatStore((state) =>
+    targetId ? state.onlineUsers.includes(targetId) : false,
+  );
 
   const { emitEvent, isConnected, subscribeToEvents } = useWebSocketContext();
 
@@ -50,7 +57,7 @@ export default function ChatContainer({
 
     emitEvent({
       type: "SUBSCRIBE",
-      payload: { roomId, userId: currentUserId },
+      payload: { roomId, userId: currentUserId, targetUserId: targetId },
     });
 
     return () => {
@@ -59,7 +66,7 @@ export default function ChatContainer({
         payload: { roomId, userId: currentUserId },
       });
     };
-  }, [roomId, currentUserId, emitEvent, isConnected]);
+  }, [roomId, currentUserId, targetId, emitEvent, isConnected]);
 
   // Listen for global WebSocket events
   useEffect(() => {
@@ -96,10 +103,22 @@ export default function ChatContainer({
           removeTypingUser(wsEvent.payload.userId);
         }
       }
+
+      if (wsEvent.type === "USER_STATUS_CHANGE") {
+        const { userId, isOnline } = wsEvent.payload;
+        setUserOnlineStatus(userId, isOnline);
+      }
     });
 
     return () => unsubscribe();
-  }, [roomId, queryClient, setTypingUser, removeTypingUser, subscribeToEvents]);
+  }, [
+    roomId,
+    queryClient,
+    setTypingUser,
+    removeTypingUser,
+    setUserOnlineStatus,
+    subscribeToEvents,
+  ]);
 
   if (!targetPublicKey && !isLoading && !isRoomsLoading) {
     return (
@@ -116,7 +135,7 @@ export default function ChatContainer({
       <ChatHeader
         targetUserUsername={activeRoom?.targetUserUsername}
         targetUserId={activeRoom?.targetUserId}
-        isConnected={isConnected}
+        isConnected={isTargetOnline}
       />
 
       {/* Messages section */}

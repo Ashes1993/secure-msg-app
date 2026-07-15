@@ -4,10 +4,13 @@ interface ChatState {
   typingUsers: string[];
   setTypingUser: (userId: string) => void;
   removeTypingUser: (userId: string) => void;
+  onlineUsers: string[];
+  setUserOnlineStatus: (userId: string, isOnline: boolean) => void;
 }
 
 export const useChatStore = create<ChatState>()((set) => ({
   typingUsers: [],
+  onlineUsers: [],
 
   setTypingUser: (userId) =>
     set((state) => {
@@ -20,4 +23,17 @@ export const useChatStore = create<ChatState>()((set) => ({
     set((state) => ({
       typingUsers: state.typingUsers.filter((id) => id !== userId),
     })),
+
+  setUserOnlineStatus: (userId, isOnline) =>
+    set((state) => {
+      const isCurrentlyMarkedOnline = state.onlineUsers.includes(userId);
+
+      if (isOnline) {
+        if (isCurrentlyMarkedOnline) return state;
+        return { onlineUsers: [...state.onlineUsers, userId] };
+      } else {
+        if (!isCurrentlyMarkedOnline) return state;
+        return { onlineUsers: state.onlineUsers.filter((id) => id !== userId) };
+      }
+    }),
 }));
