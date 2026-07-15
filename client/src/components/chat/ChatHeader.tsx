@@ -2,23 +2,16 @@
 
 import Link from "next/link";
 import { ArrowLeft, ShieldCheck, User } from "lucide-react";
-import { useChatStore } from "@/stores/useChatStore";
 
 interface ChatHeaderProps {
   targetUserUsername: string | undefined;
-  targetUserId: string | undefined;
   isConnected: boolean;
 }
 
 export default function ChatHeader({
   targetUserUsername,
-  targetUserId,
   isConnected,
 }: ChatHeaderProps) {
-  const isTyping = useChatStore((state) =>
-    targetUserId ? state.typingUsers.includes(targetUserId) : false,
-  );
-
   return (
     <header className="w-full h-16 border-b border-border px-4 flex items-center justify-between bg-muted-foreground/[0.01] shrink-0">
       <div className="flex items-center gap-3 min-w-0">
@@ -43,11 +36,6 @@ export default function ChatHeader({
           <h2 className="font-semibold text-md text-foreground truncate tracking-tight">
             {targetUserUsername}
           </h2>
-          {isTyping && (
-            <span className="text-xs text-primary truncate tracking-tight animate-pulse font-medium">
-              is typing...
-            </span>
-          )}
           <p className="flex items-center justify-center gap-1 text-sm text-muted-foreground truncate tracking-tight">
             <ShieldCheck className="w-3.5 h-3.5 text-primary shrink-0" />
             Encrypted Connection

@@ -134,7 +134,6 @@ export default function ChatContainer({
       {/* Header section */}
       <ChatHeader
         targetUserUsername={activeRoom?.targetUserUsername}
-        targetUserId={activeRoom?.targetUserId}
         isConnected={isTargetOnline}
       />
 

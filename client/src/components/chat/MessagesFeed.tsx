@@ -2,9 +2,11 @@
 
 import { useRef, useEffect } from "react";
 import { Loader2, MessageSquareOff } from "lucide-react";
-import ErrorState from "../ui/ErrorState";
 import { MessageEntity } from "@/types/chat";
+import { useChatStore } from "@/stores/useChatStore";
 import { MessageItem } from "./MessageItem";
+import ErrorState from "../ui/ErrorState";
+import TypingIndicatorBubble from "./TypingIndicatorBubble";
 
 interface MessageFeedProps {
   messages: MessageEntity[];
@@ -33,8 +35,11 @@ export default function MessagesFeed({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const isInitialLoad = useRef(true);
   const prevLastMessageId = useRef<string | null>(null);
-
   const lastMarkedIdRef = useRef<string | null>(null);
+
+  const isTargetTyping = useChatStore((state) =>
+    state.typingUsers.some((id) => id !== currentUserId),
+  );
 
   useEffect(() => {
     const target = topObserverRef.current;
@@ -72,6 +77,12 @@ export default function MessagesFeed({
     }
     prevLastMessageId.current = currentLastMessage?.id ?? null;
   }, [messages]);
+
+  useEffect(() => {
+    if (isTargetTyping) {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [isTargetTyping]);
 
   // Auto-trigger read status when new messages are displayed
   useEffect(() => {
@@ -117,29 +128,34 @@ export default function MessagesFeed({
       )}
 
       {/* Chat messages layout */}
-      {!isLoading && !isRoomsLoading && !error && messages.length > 0 && (
-        <div className=" overflow-y-auto min-h-0 h-full p-4 space-y-4 bg-muted-foreground/[0.01] animate-slide-up">
-          {/* Invisible anchor for upward scrolling detection */}
-          <div
-            ref={topObserverRef}
-            className="w-full h-2 flex items-center justify-center py-2"
-          >
-            {isFetchingNextPage && (
-              <Loader2 className="w-4 h-4 animate-spin text-primary" />
-            )}
+      {!isLoading &&
+        !isRoomsLoading &&
+        !error &&
+        (messages.length > 0 || isTargetTyping) && (
+          <div className=" overflow-y-auto min-h-0 h-full p-4 space-y-4 bg-muted-foreground/[0.01] animate-slide-up">
+            {/* Invisible anchor for upward scrolling detection */}
+            <div
+              ref={topObserverRef}
+              className="w-full h-2 flex items-center justify-center py-2"
+            >
+              {isFetchingNextPage && (
+                <Loader2 className="w-4 h-4 animate-spin text-primary" />
+              )}
+            </div>
+
+            {messages.map((message) => (
+              <MessageItem
+                key={message.id}
+                message={message}
+                currentUserId={currentUserId}
+              />
+            ))}
+
+            {isTargetTyping && <TypingIndicatorBubble />}
+
+            <div ref={messagesEndRef} />
           </div>
-
-          {messages.map((message) => (
-            <MessageItem
-              key={message.id}
-              message={message}
-              currentUserId={currentUserId}
-            />
-          ))}
-
-          <div ref={messagesEndRef} />
-        </div>
-      )}
+        )}
     </>
   );
 }
