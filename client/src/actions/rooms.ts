@@ -2,6 +2,7 @@
 
 import { auth } from "@/auth";
 import prisma from "@/lib/prisma";
+import { Prisma } from "@/generated/prisma/client";
 import { ActionResponse } from "@/types/actions";
 import { CreateRoomResult, RoomEntity, MarkAsRead } from "@/types/chat";
 
@@ -216,22 +217,17 @@ export async function getRooms(): Promise<ActionResponse<RoomEntity[] | null>> {
           },
         },
       },
-
       orderBy: {
         updatedAt: "desc",
       },
-
       select: {
         id: true,
         type: true,
         updatedAt: true,
         roomParticipants: {
-          where: {
-            NOT: {
-              userId: currentUserId,
-            },
-          },
           select: {
+            userId: true,
+            lastReadAt: true,
             user: {
               select: {
                 id: true,
@@ -258,19 +254,41 @@ export async function getRooms(): Promise<ActionResponse<RoomEntity[] | null>> {
       },
     });
 
+    const roomIds = rooms.map((r) => r.id);
+
+    const unreadCountsRaw: Array<{ roomId: string; unreadCount: bigint }> =
+      roomIds.length > 0
+        ? await prisma.$queryRaw`
+        SELECT m."roomId", COUNT(m.id) AS "unreadCount"
+        FROM "Message" m
+        JOIN "RoomParticipant" rp 
+          ON rp."roomId" = m."roomId" 
+         AND rp."userId" = ${currentUserId}
+        WHERE m."roomId" IN (${Prisma.join(roomIds)})
+          AND m."senderId" != ${currentUserId}
+          AND (rp."lastReadAt" IS NULL OR m."createdAt" > rp."lastReadAt")
+        GROUP BY m."roomId"
+      `
+        : [];
+
+    // Map the unread counts into an accessible Map object
+    const unreadMap = new Map(
+      unreadCountsRaw.map((item) => [item.roomId, Number(item.unreadCount)]),
+    );
+
     const sanitizedRooms: RoomEntity[] = rooms.map((room) => {
-      const targetParticipant = room.roomParticipants[0]?.user;
+      const targetParticipant = room.roomParticipants.find(
+        (p) => p.userId !== currentUserId,
+      )?.user;
       const latestMessage = room.messages[0];
 
       return {
         id: room.id,
         type: room.type,
         updatedAt: room.updatedAt,
-
         targetUserId: targetParticipant?.id || "unknown-id",
         targetUserUsername: targetParticipant?.username || "Unknown User",
         targetUserPublicKey: targetParticipant?.publicKey || "null",
-
         lastMessage:
           latestMessage?.encryptedContent || "No messages yet. Say hello!",
         lastMessageSenderId: latestMessage?.senderId || null,
@@ -281,6 +299,8 @@ export async function getRooms(): Promise<ActionResponse<RoomEntity[] | null>> {
           latestMessage?.recipientEncryptedKey || null,
         lastMessageAt: latestMessage?.createdAt || null,
         currentUserId,
+
+        unreadCount: unreadMap.get(room.id) || 0,
       };
     });
 

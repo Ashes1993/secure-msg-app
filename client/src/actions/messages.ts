@@ -128,32 +128,58 @@ export async function getMessages(
   const sanitizedLimit = Math.min(Math.max(limit, 1), 100);
 
   try {
-    const messages = await prisma.message.findMany({
-      take: sanitizedLimit,
-      ...(cursor?.trim() && { skip: 1, cursor: { id: cursor } }),
-      where: {
-        roomId,
-        room: {
-          roomParticipants: {
-            some: { userId: currentUserId },
+    const [recipientParticipant, messages] = await Promise.all([
+      prisma.roomParticipant.findFirst({
+        where: {
+          roomId,
+          NOT: { userId: currentUserId },
+        },
+        select: {
+          lastReadAt: true,
+        },
+      }),
+      prisma.message.findMany({
+        take: sanitizedLimit,
+        ...(cursor?.trim() && { skip: 1, cursor: { id: cursor } }),
+        where: {
+          roomId,
+          room: {
+            roomParticipants: {
+              some: { userId: currentUserId },
+            },
           },
         },
-      },
-      orderBy: {
-        createdAt: "desc",
-      },
-      select: {
-        id: true,
-        senderId: true,
-        encryptedContent: true,
-        iv: true,
-        senderEncryptedKey: true,
-        recipientEncryptedKey: true,
-        createdAt: true,
-      },
+        orderBy: {
+          createdAt: "desc",
+        },
+        select: {
+          id: true,
+          senderId: true,
+          encryptedContent: true,
+          iv: true,
+          senderEncryptedKey: true,
+          recipientEncryptedKey: true,
+          createdAt: true,
+        },
+      }),
+    ]);
+
+    const sanitizedMessages: MessageEntity[] = messages.map((msg) => {
+      const isSentByMe = msg.senderId === currentUserId;
+
+      const isRead = isSentByMe
+        ? recipientParticipant?.lastReadAt
+          ? msg.createdAt <= recipientParticipant.lastReadAt
+          : false
+        : true;
+
+      return {
+        ...msg,
+        isRead,
+      };
     });
 
-    return { success: true, error: null, data: messages };
+    return { success: true, error: null, data: sanitizedMessages };
   } catch (err) {
     console.log(
       "[Actions:getMessages] Database error durinng secure message retrieval:",

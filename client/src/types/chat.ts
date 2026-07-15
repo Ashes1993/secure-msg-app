@@ -6,6 +6,7 @@ export interface MessageEntity {
   senderEncryptedKey: string;
   recipientEncryptedKey: string;
   createdAt: Date;
+  isRead?: boolean;
 }
 
 export interface RoomEntity {
@@ -22,6 +23,7 @@ export interface RoomEntity {
   lastMessageRecipientEncryptedKey: string | null;
   lastMessageAt: Date | null;
   currentUserId: string;
+  unreadCount?: number;
 }
 
 export interface CreateRoomResult {
@@ -55,5 +57,14 @@ export type WebSocketEvent =
       payload: {
         recipientId: string;
         room: RoomEntity;
+      };
+    }
+  | {
+      type: "MARK_READ";
+      payload: {
+        roomId: string;
+        readerId: string;
+        lastReadMessageId: string;
+        recipientId?: string;
       };
     };
