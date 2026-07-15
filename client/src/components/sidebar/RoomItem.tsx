@@ -46,6 +46,8 @@ function formatChatTimestamp(dateInput: Date | string | null): string {
 
 export default function RoomItem({ room, isActive }: RoomItemProps) {
   const formattedTimestamp = formatChatTimestamp(room.lastMessageAt);
+  const hasUnread = (room.unreadCount ?? 0) > 0;
+
   return (
     <Link
       key={room.id}
@@ -53,14 +55,14 @@ export default function RoomItem({ room, isActive }: RoomItemProps) {
       className={`group relative flex gap-3 w-full p-3 border rounded-xl transition-micro select-none outline-none animate-popover ${isActive ? "bg-gradient-to-r from-primary/15 to-primary/5 border-primary/40 shadow-md shadow-primary/5 translate-x-1" : "bg-card hover:bg-accent/50 border-border hover:border-border/80 hover:translate-x-0.5"}`}
     >
       <div
-        className={`absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 rounded-r-full bg-primary transition-micro duration-300 ${isActive ? "opacity-100 scale-100" : "opacity-0 sccale-75 group-hover:opacity-40"}`}
+        className={`absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 rounded-r-full bg-primary transition-micro duration-300 ${isActive ? "opacity-100 scale-100" : "opacity-0 scale-75 group-hover:opacity-40"}`}
       />
 
       <div className="relative shrink-0">
         <div
           className={`w-11 h-11 rounded-full flex items-center justify-center border transition-colors duration-300 ${
             isActive
-              ? "bg-primary/20 border-primary/30 text-primay shadow-inner"
+              ? "bg-primary/20 border-primary/30 text-primary shadow-inner"
               : "bg-card border-border text-muted-foreground group-hover:bg-background group-hover:text-foreground"
           }`}
         >
@@ -84,7 +86,9 @@ export default function RoomItem({ room, isActive }: RoomItemProps) {
             className={`text-sm font-semibold tracking-tight truncate transition-colors duration-200 ${
               isActive
                 ? "text-primary font-bold"
-                : "text-foreground group-hover:text-primary/90"
+                : hasUnread
+                  ? "text-foreground font-bold"
+                  : "text-foreground group-hover:text-primary/90 font-semibold"
             }`}
           >
             {room.targetUserUsername}
@@ -92,7 +96,11 @@ export default function RoomItem({ room, isActive }: RoomItemProps) {
           {formattedTimestamp && (
             <span
               className={`text-[8px] font-semibold tracking-tight whitespace-nowrap tabular-nums shrink-0 ${
-                isActive ? "text-primary/80" : "text-muted-foreground/70"
+                isActive
+                  ? "text-primary/80"
+                  : hasUnread
+                    ? "text-primary font-bold"
+                    : "text-muted-foreground/70"
               }`}
             >
               {formattedTimestamp}
@@ -100,15 +108,25 @@ export default function RoomItem({ room, isActive }: RoomItemProps) {
           )}
         </div>
 
-        <p
-          className={`text-xs truncate font-medium max-w-[170px] transition-colors duration-200 ${
-            isActive
-              ? "text-foreground/80 font-medium"
-              : "text-muted-foreground"
-          }`}
-        >
-          {room.lastMessage}
-        </p>
+        <div className="flex items-center justify-between w-full gap-2 mt-0.5">
+          <p
+            className={`text-xs truncate transition-colors duration-200 flex-1 max-w-[170px] ${
+              isActive
+                ? "text-foreground/80 font-medium"
+                : hasUnread
+                  ? "text-foreground font-semibold"
+                  : "text-muted-foreground font-medium"
+            }`}
+          >
+            {room.lastMessage}
+          </p>
+
+          {hasUnread && (
+            <span className="flex items-center justify-center h-5 min-w-[20px] px-1.5 text-[10px] font-bold text-primary-foreground bg-primary rounded-full shrink-0 shadow-sm shadow-primary/20 animate-scale-in">
+              {room.unreadCount}
+            </span>
+          )}
+        </div>
       </div>
     </Link>
   );

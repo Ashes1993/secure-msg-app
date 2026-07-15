@@ -26,6 +26,20 @@ export default function RoomList() {
     : params?.roomId;
 
   useEffect(() => {
+    if (!activeRoomId) return;
+
+    queryClient.setQueryData<RoomEntity[] | null>(["rooms"], (oldRooms) => {
+      if (!oldRooms) return oldRooms;
+      return oldRooms.map((room) => {
+        if (String(room.id) === String(activeRoomId)) {
+          return { ...room, unreadCount: 0 };
+        }
+        return room;
+      });
+    });
+  }, [activeRoomId, queryClient]);
+
+  useEffect(() => {
     const unsubscribe = subscribeToEvents((wsEvent: WebSocketEvent) => {
       // Handle incoming room creation
       if (wsEvent.type === "ROOM_CREATED") {
@@ -35,6 +49,25 @@ export default function RoomList() {
           if (oldRooms.some((r) => r.id === newRoom.id)) return oldRooms;
           return [newRoom, ...oldRooms];
         });
+      }
+
+      // Multi-tab syncing for read receiots
+      if (wsEvent.type === "MARK_READ") {
+        const { roomId, readerId } = wsEvent.payload;
+        if (readerId === currentUserId) {
+          queryClient.setQueryData<RoomEntity[] | null>(
+            ["rooms"],
+            (oldRooms) => {
+              if (!oldRooms) return oldRooms;
+              return oldRooms.map((room) => {
+                if (room.id === roomId) {
+                  return { ...room, unreadCount: 0 };
+                }
+                return room;
+              });
+            },
+          );
+        }
       }
 
       // Handle incoming real-time encrypted messages for sidebar preview updates
@@ -84,6 +117,11 @@ export default function RoomList() {
                 return oldRooms;
               }
 
+              const isCurrentlyActiveRoom =
+                String(roomId) === String(activeRoomId);
+              const shouldIncrementUnread =
+                senderId !== currentUserId && !isCurrentlyActiveRoom;
+
               const updatedRoom: RoomEntity = {
                 ...oldRooms[targetIndex],
                 lastMessage: plaintext,
@@ -92,6 +130,9 @@ export default function RoomList() {
                 lastMessageIv: iv,
                 lastMessageSenderEncryptedKey: senderEncryptedKey,
                 lastMessageRecipientEncryptedKey: recipientEncryptedKey,
+                unreadCount: shouldIncrementUnread
+                  ? (oldRooms[targetIndex].unreadCount ?? 0) + 1
+                  : 0,
               };
 
               // Re-order rooms array so the most recently updated room floats to the top
@@ -104,7 +145,13 @@ export default function RoomList() {
     });
 
     return () => unsubscribe();
-  }, [queryClient, myPrivateKey, currentUserId, subscribeToEvents]);
+  }, [
+    queryClient,
+    myPrivateKey,
+    currentUserId,
+    subscribeToEvents,
+    activeRoomId,
+  ]);
 
   return (
     <div className="mt-4 px-1 overflow-y-auto scrollbar-none">
