@@ -56,11 +56,33 @@ wss.on("connection", (ws: WebSocket) => {
       switch (wsEvent.type) {
         case "SUBSCRIBE": {
           connectedUserId = wsEvent.payload.userId;
+          const { roomId, targetUserId } = wsEvent.payload;
+
           manager.registerConnection(connectedUserId, ws);
-          if (wsEvent.payload.roomId) {
-            manager.joinRoom(wsEvent.payload.roomId, connectedUserId);
+
+          if (roomId) {
+            manager.joinRoom(roomId, connectedUserId);
             console.log(
               `[SUBSCRIPTION] User: ${connectedUserId} subscribed to room [${wsEvent.payload.roomId}]`,
+            );
+
+            if (targetUserId) {
+              const isTargetOnline = manager.isUserConnected(targetUserId);
+              ws.send(
+                JSON.stringify({
+                  type: "USER_STATUS_CHANGE",
+                  payload: { userId: targetUserId, isOnline: isTargetOnline },
+                }),
+              );
+            }
+
+            manager.broadcastToRoom(
+              roomId,
+              connectedUserId,
+              JSON.stringify({
+                type: "USER_STATUS_CHANGE",
+                payload: { userId: connectedUserId, isOnline: true },
+              }),
             );
           } else {
             console.log(
@@ -148,8 +170,26 @@ wss.on("connection", (ws: WebSocket) => {
 
   ws.on("close", () => {
     if (connectedUserId) {
+      const userId = connectedUserId;
+      const rooms = manager.getUserRooms(connectedUserId);
+
       manager.removeConnection(connectedUserId);
+
+      rooms.forEach((roomId) => {
+        manager.leaveRoom(roomId, userId);
+      });
       console.log(`[WS TEARDOWN] Session cleaned for User: ${connectedUserId}`);
+
+      rooms.forEach((roomId) => {
+        manager.broadcastToRoom(
+          roomId,
+          connectedUserId!,
+          JSON.stringify({
+            type: "USER_STATUS_CHANGE",
+            payload: { userId: connectedUserId, isOnline: false },
+          }),
+        );
+      });
     }
   });
 });

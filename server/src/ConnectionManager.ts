@@ -26,16 +26,29 @@ export class ConnectionManager {
     }
   }
 
+  public isUserConnected(userId: string): boolean {
+    return this.userSockets.has(userId);
+  }
+
+  public getUserRooms(userId: string): string[] {
+    const activeRooms: string[] = [];
+    this.roomParticipants.forEach((participants, roomId) => {
+      if (participants.has(userId)) {
+        activeRooms.push(roomId);
+      }
+    });
+    return activeRooms;
+  }
+
   public removeConnection(userId: string): void {
     this.userSockets.delete(userId);
   }
 
   public startHeartbeatSentinel(intervalMs: number = 30000): NodeJS.Timeout {
     return setInterval(() => {
-      this.userSockets.forEach((socket, userId) => {
+      this.userSockets.forEach((socket) => {
         if (!socket.isAlive) {
           socket.terminate();
-          this.removeConnection(userId);
           return;
         }
 
