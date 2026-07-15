@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { decryptMessage } from "@/lib/crypto";
 import { useAuthStore } from "@/stores/useAuthStore";
 import { MessageEntity } from "@/types/chat";
+import { Check, CheckCheck } from "lucide-react";
 
 interface MessageItemProps {
   message: MessageEntity;
@@ -104,7 +105,16 @@ export function MessageItem({ message, currentUserId }: MessageItemProps) {
               : "justify-start text-muted-foreground"
           }`}
         >
-          {formatMessageTimestamp(message.createdAt)}
+          <span>{formatMessageTimestamp(message.createdAt)}</span>
+          {isMe && (
+            <span className="ml-1 flex items-center">
+              {message.isRead ? (
+                <CheckCheck className="w-3 h-3 text-black stroke-[2.5]" />
+              ) : (
+                <Check className="w-3 h-3 text-black stroke-[2.5]" />
+              )}
+            </span>
+          )}
         </div>
       </div>
     </div>

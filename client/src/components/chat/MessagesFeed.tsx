@@ -15,6 +15,7 @@ interface MessageFeedProps {
   isFetchingNextPage: boolean;
   isRoomsLoading: boolean;
   currentUserId: string;
+  onMarkAsRead?: (lastMessageId: string) => void;
 }
 
 export default function MessagesFeed({
@@ -26,11 +27,14 @@ export default function MessagesFeed({
   isFetchingNextPage,
   isRoomsLoading,
   currentUserId,
+  onMarkAsRead,
 }: MessageFeedProps) {
   const topObserverRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const isInitialLoad = useRef(true);
   const prevLastMessageId = useRef<string | null>(null);
+
+  const lastMarkedIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     const target = topObserverRef.current;
@@ -68,6 +72,19 @@ export default function MessagesFeed({
     }
     prevLastMessageId.current = currentLastMessage?.id ?? null;
   }, [messages]);
+
+  // Auto-trigger read status when new messages are displayed
+  useEffect(() => {
+    if (messages.length === 0 || !onMarkAsRead) return;
+
+    const latestMessage = messages[messages.length - 1];
+    const isIncoming = latestMessage.senderId !== currentUserId;
+
+    if (isIncoming && lastMarkedIdRef.current !== latestMessage.id) {
+      lastMarkedIdRef.current = latestMessage.id;
+      onMarkAsRead(latestMessage.id);
+    }
+  }, [messages, currentUserId, onMarkAsRead]);
 
   return (
     <>

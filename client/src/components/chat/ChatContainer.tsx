@@ -11,6 +11,7 @@ import ErrorState from "../ui/ErrorState";
 import MessagesFeed from "./MessagesFeed";
 import { useWebSocketContext } from "@/providers/WebSocketProvider";
 import { MessageEntity, WebSocketEvent } from "@/types/chat";
+import { useMarkAsRead } from "@/hooks/useMarkAsRead";
 
 interface ChatContainerProps {
   roomId: string;
@@ -40,6 +41,8 @@ export default function ChatContainer({
   const removeTypingUser = useChatStore((state) => state.removeTypingUser);
 
   const { emitEvent, isConnected, subscribeToEvents } = useWebSocketContext();
+
+  const { markRoomAsRead } = useMarkAsRead(roomId, targetId);
 
   // Subscribe to room when ChatContainer mounts
   useEffect(() => {
@@ -126,6 +129,7 @@ export default function ChatContainer({
         isFetchingNextPage={isFetchingNextPage}
         isRoomsLoading={isRoomsLoading}
         currentUserId={currentUserId}
+        onMarkAsRead={markRoomAsRead}
       />
 
       {/* Create message form */}
