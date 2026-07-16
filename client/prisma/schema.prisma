@@ -59,6 +59,7 @@ model Message {
   senderEncryptedKey String
   recipientEncryptedKey String
   createdAt DateTime  @default(now())
+  deletedFor String[] @default([])
 
   user  User  @relation(fields: [senderId], references: [id])
   room  Room  @relation(fields:[roomId], references: [id])
