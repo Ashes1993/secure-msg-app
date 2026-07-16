@@ -122,14 +122,11 @@ wss.on("connection", (ws: WebSocket) => {
         }
 
         case "TYPING_STATUS": {
+          const { roomId, userId, isTyping } = wsEvent.payload;
           console.log(
-            `[TYPING STATUS] Room: [${wsEvent.payload.roomId}] <- User: ${wsEvent.payload.userId} (Typing: ${wsEvent.payload.isTyping})`,
+            `[TYPING STATUS] Room: [${roomId}] <- User: ${userId} (Typing: ${isTyping})`,
           );
-          manager.broadcastToRoom(
-            wsEvent.payload.roomId,
-            wsEvent.payload.userId,
-            stringifiedPayload,
-          );
+          manager.broadcastToRoom(roomId, userId, stringifiedPayload);
           break;
         }
 
@@ -154,6 +151,16 @@ wss.on("connection", (ws: WebSocket) => {
             manager.sendToUser(recipientId, stringifiedPayload);
           }
           break;
+        }
+
+        case "MESSAGE_DELETED": {
+          const { roomId, userId, messageId } = wsEvent.payload;
+
+          console.log(
+            `[DELETE MESSAGE] Message ${messageId} was deleted by ${userId} inside room ${roomId}`,
+          );
+
+          manager.broadcastToRoom(roomId, userId, stringifiedPayload);
         }
       }
     } catch (parseError) {

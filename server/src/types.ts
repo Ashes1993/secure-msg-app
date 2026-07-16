@@ -63,4 +63,12 @@ export type WebSocketEvent =
         lastReadMessageId: string;
         recipientId?: string;
       };
+    }
+  | {
+      type: "MESSAGE_DELETED";
+      payload: {
+        roomId: string;
+        userId: string;
+        messageId: string;
+      };
     };
