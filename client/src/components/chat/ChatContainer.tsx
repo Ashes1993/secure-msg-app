@@ -108,6 +108,26 @@ export default function ChatContainer({
         const { userId, isOnline } = wsEvent.payload;
         setUserOnlineStatus(userId, isOnline);
       }
+
+      if (
+        wsEvent.type === "MESSAGE_DELETED" &&
+        wsEvent.payload.roomId === roomId
+      ) {
+        const { messageId } = wsEvent.payload;
+
+        queryClient.setQueryData<InfiniteData<MessageEntity[]>>(
+          ["messages", roomId],
+          (oldData) => {
+            if (!oldData) return oldData;
+            return {
+              ...oldData,
+              pages: oldData.pages.map((page) =>
+                page.filter((msg) => msg.id !== messageId),
+              ),
+            };
+          },
+        );
+      }
     });
 
     return () => unsubscribe();
