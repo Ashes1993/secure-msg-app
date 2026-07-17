@@ -80,6 +80,5 @@ export function useDeleteMessage(roomId: string, currentUserId: string) {
 
   return {
     deleteMessage: deleteMessageMutation.mutate,
-    isPending: deleteMessageMutation.isPending,
   };
 }
