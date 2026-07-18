@@ -75,10 +75,12 @@ export function useDeleteMessage(roomId: string, currentUserId: string) {
 
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["messages", roomId] });
+      queryClient.invalidateQueries({ queryKey: ["rooms"] });
     },
   });
 
   return {
     deleteMessage: deleteMessageMutation.mutate,
+    isPending: deleteMessageMutation.isPending,
   };
 }

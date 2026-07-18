@@ -1,10 +1,11 @@
 "use client";
 
-import { useRef, useEffect } from "react";
-import { Loader2, MessageSquareOff } from "lucide-react";
+import { useRef, useEffect, useState } from "react";
+import { useParams } from "next/navigation";
 import { MessageEntity } from "@/types/chat";
 import { useChatStore } from "@/stores/useChatStore";
-import { MessageItem } from "./MessageItem";
+import { Loader2, MessageSquareOff } from "lucide-react";
+import { MessageItem } from "./message-item";
 import ErrorState from "../ui/ErrorState";
 import TypingIndicatorBubble from "./TypingIndicatorBubble";
 
@@ -20,7 +21,7 @@ interface MessageFeedProps {
   onMarkAsRead?: (lastMessageId: string) => void;
 }
 
-export default function MessagesFeed({
+export function MessagesFeed({
   messages,
   isLoading,
   error,
@@ -36,6 +37,12 @@ export default function MessagesFeed({
   const isInitialLoad = useRef(true);
   const prevLastMessageId = useRef<string | null>(null);
   const lastMarkedIdRef = useRef<string | null>(null);
+
+  const params = useParams();
+  const roomId = params.roomId as string;
+  const [activeMenuMessageId, setActiveMenuMessageId] = useState<string | null>(
+    null,
+  );
 
   const isTargetTyping = useChatStore((state) =>
     state.typingUsers.some((id) => id !== currentUserId),
@@ -132,7 +139,10 @@ export default function MessagesFeed({
         !isRoomsLoading &&
         !error &&
         (messages.length > 0 || isTargetTyping) && (
-          <div className=" overflow-y-auto min-h-0 h-full p-4 space-y-4 bg-muted-foreground/[0.01] animate-slide-up">
+          <div
+            onClick={() => setActiveMenuMessageId(null)}
+            className=" overflow-y-auto min-h-0 h-full p-4 space-y-4 bg-muted-foreground/[0.01] animate-slide-up"
+          >
             {/* Invisible anchor for upward scrolling detection */}
             <div
               ref={topObserverRef}
@@ -148,6 +158,13 @@ export default function MessagesFeed({
                 key={message.id}
                 message={message}
                 currentUserId={currentUserId}
+                roomId={roomId}
+                isMenuOpen={activeMenuMessageId === message.id}
+                onToggleMenu={() =>
+                  setActiveMenuMessageId(
+                    activeMenuMessageId === message.id ? null : message.id,
+                  )
+                }
               />
             ))}
 
