@@ -54,6 +54,13 @@ export async function createRoom(
         updatedAt: true,
         roomParticipants: participantSelect,
         messages: {
+          where: {
+            NOT: {
+              deletedFor: {
+                has: currentUserId,
+              },
+            },
+          },
           orderBy: { createdAt: "desc" },
           take: 1,
           select: {
@@ -238,6 +245,13 @@ export async function getRooms(): Promise<ActionResponse<RoomEntity[] | null>> {
           },
         },
         messages: {
+          where: {
+            NOT: {
+              deletedFor: {
+                has: currentUserId,
+              },
+            },
+          },
           orderBy: {
             createdAt: "desc",
           },
@@ -266,6 +280,7 @@ export async function getRooms(): Promise<ActionResponse<RoomEntity[] | null>> {
          AND rp."userId" = ${currentUserId}
         WHERE m."roomId" IN (${Prisma.join(roomIds)})
           AND m."senderId" != ${currentUserId}
+          AND NOT (${currentUserId} = ANY(m."deletedFor"))
           AND (rp."lastReadAt" IS NULL OR m."createdAt" > rp."lastReadAt")
         GROUP BY m."roomId"
       `
