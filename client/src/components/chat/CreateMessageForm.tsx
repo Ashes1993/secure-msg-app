@@ -156,7 +156,8 @@ export function CreateMessageForm({
           }, 2000);
         }}
         placeholder="Type a secure message..."
-        disabled={isPending || isDisabled}
+        disabled={Boolean(isPending || isDisabled)}
+        suppressHydrationWarning={true}
         className="flex-1 py-2 px-3 resize-none min-h-[40px] max-h-[120px] bg-transparent text-foreground text-xs placeholder:text-muted-foreground focus:outline-none disabled:opacity-50 font-normal leading-relaxed custom-scrollbar"
       />
       <button
