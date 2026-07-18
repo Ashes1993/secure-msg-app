@@ -5,13 +5,13 @@ import { useMessages } from "@/hooks/useMessages";
 import { useRooms } from "@/hooks/useRooms";
 import { useQueryClient, InfiniteData } from "@tanstack/react-query";
 import { useChatStore } from "@/stores/useChatStore";
-import CreateMessageForm from "./CreateMessageForm";
-import ChatHeader from "./ChatHeader";
-import ErrorState from "../ui/ErrorState";
-import MessagesFeed from "./MessagesFeed";
 import { useWebSocketContext } from "@/providers/WebSocketProvider";
 import { MessageEntity, WebSocketEvent } from "@/types/chat";
 import { useMarkAsRead } from "@/hooks/useMarkAsRead";
+import { CreateMessageForm } from "./CreateMessageForm";
+import { ChatHeader } from "./ChatHeader";
+import ErrorState from "../ui/ErrorState";
+import { MessagesFeed } from "./MessagesFeed";
 
 interface ChatContainerProps {
   roomId: string;
@@ -150,7 +150,10 @@ export default function ChatContainer({
   }
 
   return (
-    <div className="w-full h-screen max-h-screen md:h-full md:max-h-full flex flex-col bg-background relative overflow-hidden min-h-0">
+    <div
+      id="chat-workspace-root"
+      className="w-full h-screen max-h-screen md:h-full md:max-h-full flex flex-col bg-background relative overflow-hidden min-h-0"
+    >
       {/* Header section */}
       <ChatHeader
         targetUserUsername={activeRoom?.targetUserUsername}

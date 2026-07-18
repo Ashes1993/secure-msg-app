@@ -14,7 +14,7 @@ interface CreateMessageFormProps {
   emitEvent: (event: WebSocketEvent) => void;
 }
 
-export default function CreateMessageForm({
+export function CreateMessageForm({
   roomId,
   targetPublicKey,
   targetId,

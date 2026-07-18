@@ -8,7 +8,7 @@ interface ChatHeaderProps {
   isConnected: boolean;
 }
 
-export default function ChatHeader({
+export function ChatHeader({
   targetUserUsername,
   isConnected,
 }: ChatHeaderProps) {
