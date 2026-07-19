@@ -58,8 +58,11 @@ model Message {
   iv  String
   senderEncryptedKey String
   recipientEncryptedKey String
-  createdAt DateTime  @default(now())
+  isEdited  Boolean @default(false)
   deletedFor String[] @default([])
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @default(now()) @updatedAt
 
   user  User  @relation(fields: [senderId], references: [id])
   room  Room  @relation(fields:[roomId], references: [id])

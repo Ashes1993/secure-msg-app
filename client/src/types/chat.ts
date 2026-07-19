@@ -5,7 +5,9 @@ export interface MessageEntity {
   iv: string;
   senderEncryptedKey: string;
   recipientEncryptedKey: string;
+  isEdited: boolean;
   createdAt: Date;
+  updatedAt: Date;
   isRead?: boolean;
 }
 
