@@ -77,7 +77,9 @@ export async function createMessage(
           iv: true,
           senderEncryptedKey: true,
           recipientEncryptedKey: true,
+          isEdited: true,
           createdAt: true,
+          updatedAt: true,
         },
       }),
 
@@ -164,7 +166,9 @@ export async function getMessages(
           iv: true,
           senderEncryptedKey: true,
           recipientEncryptedKey: true,
+          isEdited: true,
           createdAt: true,
+          updatedAt: true,
         },
       }),
     ]);
@@ -314,6 +318,78 @@ export async function deleteMessage(
       success: false,
       error:
         "Unable to delete message due to a system failure. Please try again shortly.",
+      data: null,
+    };
+  }
+}
+
+export async function editMessage(
+  messageId: string,
+  encryptedContent: string,
+  iv: string,
+  senderEncryptedKey: string,
+  recipientEncryptedKey: string,
+): Promise<ActionResponse<MessageEntity | null>> {
+  const session = await auth();
+  const currentUserId = session?.user?.id;
+
+  if (!currentUserId)
+    return {
+      success: false,
+      error: "Authentication session expired. Please sign in again.",
+      data: null,
+    };
+
+  if (
+    !messageId?.trim() ||
+    !encryptedContent?.trim() ||
+    !iv?.trim() ||
+    !senderEncryptedKey?.trim() ||
+    !recipientEncryptedKey?.trim()
+  ) {
+    return {
+      success: false,
+      error: "Malformed payload structures encountered. Try again shortly.",
+      data: null,
+    };
+  }
+
+  try {
+    const updatedMessage = await prisma.message.update({
+      where: {
+        senderId: currentUserId,
+        id: messageId,
+      },
+      data: {
+        encryptedContent,
+        iv,
+        senderEncryptedKey,
+        recipientEncryptedKey,
+        isEdited: true,
+      },
+      select: {
+        id: true,
+        senderId: true,
+        encryptedContent: true,
+        iv: true,
+        senderEncryptedKey: true,
+        recipientEncryptedKey: true,
+        isEdited: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    });
+
+    return { success: true, error: null, data: updatedMessage };
+  } catch (err) {
+    console.error(
+      "[Actions:editMessage] Database error during message edit:",
+      err,
+    );
+    return {
+      success: false,
+      error:
+        "Unable to edit message due to a system failure. Please try again shortly.",
       data: null,
     };
   }
