@@ -87,4 +87,12 @@ export type WebSocketEvent =
         userId: string;
         messageId: string;
       };
+    }
+  | {
+      type: "MESSAGE_EDITED";
+      payload: {
+        recipientId?: string;
+        roomId: string;
+        message: MessageEntity;
+      };
     };

@@ -161,6 +161,26 @@ wss.on("connection", (ws: WebSocket) => {
           );
 
           manager.broadcastToRoom(roomId, userId, stringifiedPayload);
+          break;
+        }
+
+        case "MESSAGE_EDITED": {
+          const { recipientId, roomId, message } = wsEvent.payload;
+          const senderId = message.senderId;
+
+          console.log(
+            `[EDIT MESSAGE] Message ${message.id} was edited by ${senderId}`,
+          );
+          manager.broadcastToRoom(roomId, senderId, stringifiedPayload);
+
+          // In case the recipient exists and is NOT currently viewing this room
+          if (recipientId && !manager.isUserInRoom(roomId, recipientId)) {
+            console.log(
+              `[EDIT MESSAGE] Recipient ${recipientId} is outside room [${roomId}].`,
+            );
+            manager.sendToUser(recipientId, stringifiedPayload);
+          }
+          break;
         }
       }
     } catch (parseError) {

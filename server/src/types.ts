@@ -26,7 +26,9 @@ export type WebSocketEvent =
           iv: string;
           senderEncryptedKey: string;
           recipientEncryptedKey: string;
+          isEdited: boolean;
           createdAt: Date;
+          updatedAt: Date;
         };
       };
     }
@@ -70,5 +72,23 @@ export type WebSocketEvent =
         roomId: string;
         userId: string;
         messageId: string;
+      };
+    }
+  | {
+      type: "MESSAGE_EDITED";
+      payload: {
+        recipientId?: string;
+        roomId: string;
+        message: {
+          id: string;
+          senderId: string;
+          encryptedContent: string;
+          iv: string;
+          senderEncryptedKey: string;
+          recipientEncryptedKey: string;
+          isEdited: boolean;
+          createdAt: Date;
+          updatedAt: Date;
+        };
       };
     };

@@ -128,6 +128,25 @@ export default function ChatContainer({
           },
         );
       }
+
+      if (wsEvent.type === "MESSAGE_EDITED") {
+        const { message, roomId: msgRoomId } = wsEvent.payload;
+
+        queryClient.setQueryData<InfiniteData<MessageEntity[]>>(
+          ["messages", msgRoomId],
+          (oldData) => {
+            if (!oldData) return oldData;
+            return {
+              ...oldData,
+              pages: oldData.pages.map((page) =>
+                page.map((msg) =>
+                  msg.id === message.id ? { ...msg, ...message } : msg,
+                ),
+              ),
+            };
+          },
+        );
+      }
     });
 
     return () => unsubscribe();
