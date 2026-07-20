@@ -1,9 +1,11 @@
 "use client";
 
-import { useCreateMessage } from "@/hooks/useCreateMessage";
 import { useState, useRef, useEffect } from "react";
-import { SendHorizontal, Loader2 } from "lucide-react";
+import { useCreateMessage } from "@/hooks/useCreateMessage";
+import { useEditMessage } from "@/hooks/useEditMessage";
 import { WebSocketEvent } from "@/types/chat";
+import { useChatStore } from "@/stores/useChatStore";
+import { SendHorizontal, Loader2 } from "lucide-react";
 
 interface CreateMessageFormProps {
   roomId: string;
@@ -24,8 +26,23 @@ export function CreateMessageForm({
 }: CreateMessageFormProps) {
   const [message, setMessage] = useState<string>("");
   const { messageCreation, isPending, error } = useCreateMessage();
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const {
+    editMessageMutate,
+    isPending: isEditPending,
+    error: editError,
+  } = useEditMessage(roomId, targetId ?? "");
 
+  const editingMessage = useChatStore((state) => state.editingMessage);
+  const setEditingMessage = useChatStore((state) => state.setEditingMessage);
+  const [prevEditingId, setPrevEditingId] = useState<string | null>(null);
+  const currentEditingId = editingMessage?.id ?? null;
+
+  if (currentEditingId !== prevEditingId) {
+    setPrevEditingId(currentEditingId);
+    setMessage(editingMessage ? editingMessage.decryptedText : "");
+  }
+
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const isTypingRef = useRef<boolean>(false);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -43,6 +60,13 @@ export function CreateMessageForm({
     };
   }, []);
 
+  // Listen to edit message state from the Zustand store
+  useEffect(() => {
+    if (editingMessage) {
+      textareaRef.current?.focus();
+    }
+  }, [editingMessage]);
+
   const sendMessage = (event: React.SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
 
@@ -50,63 +74,79 @@ export function CreateMessageForm({
 
     if (!targetPublicKey) return;
 
-    messageCreation(
-      {
-        roomId,
-        messageText: message.trim(),
-        targetPublicKey,
-      },
-      {
-        onSuccess: (newMessageData) => {
-          setMessage("");
-          if (textareaRef.current) textareaRef.current.style.height = "auto";
+    if (editingMessage === null) {
+      messageCreation(
+        {
+          roomId,
+          messageText: message.trim(),
+          targetPublicKey,
+        },
+        {
+          onSuccess: (newMessageData) => {
+            setMessage("");
+            if (textareaRef.current) textareaRef.current.style.height = "auto";
 
-          if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+            if (typingTimeoutRef.current)
+              clearTimeout(typingTimeoutRef.current);
 
-          if (isTypingRef.current) {
-            isTypingRef.current = false;
-            emitEvent({
-              type: "TYPING_STATUS",
-              payload: { roomId, userId: currentUserId, isTyping: false },
-            });
-          }
+            if (isTypingRef.current) {
+              isTypingRef.current = false;
+              emitEvent({
+                type: "TYPING_STATUS",
+                payload: { roomId, userId: currentUserId, isTyping: false },
+              });
+            }
 
-          if (!newMessageData) {
-            console.warn("Message execution stopped: newMessageData is empty.");
-            return;
-          }
+            if (!newMessageData) {
+              console.warn(
+                "Message execution stopped: newMessageData is empty.",
+              );
+              return;
+            }
 
-          const outboundPayload = {
-            type: "ENCRYPTED_MESSAGE" as const,
-            payload: {
-              roomId,
-              recipientId: targetId,
-              message: {
-                id: newMessageData.id,
-                senderId: newMessageData.senderId,
-                encryptedContent: newMessageData.encryptedContent,
-                iv: newMessageData.iv,
-                senderEncryptedKey: newMessageData.senderEncryptedKey,
-                recipientEncryptedKey: newMessageData.recipientEncryptedKey,
-                createdAt: newMessageData.createdAt,
+            const outboundPayload = {
+              type: "ENCRYPTED_MESSAGE" as const,
+              payload: {
+                roomId,
+                recipientId: targetId,
+                message: {
+                  id: newMessageData.id,
+                  senderId: newMessageData.senderId,
+                  encryptedContent: newMessageData.encryptedContent,
+                  iv: newMessageData.iv,
+                  senderEncryptedKey: newMessageData.senderEncryptedKey,
+                  recipientEncryptedKey: newMessageData.recipientEncryptedKey,
+                  isEdited: newMessageData.isEdited,
+                  createdAt: newMessageData.createdAt,
+                  updatedAt: newMessageData.updatedAt,
+                },
               },
-            },
-          };
+            };
 
-          console.log(
-            "Dispatched payload contract over emitEvent:",
-            outboundPayload,
-          );
-          emitEvent(outboundPayload);
+            console.log(
+              "Dispatched payload contract over emitEvent:",
+              outboundPayload,
+            );
+            emitEvent(outboundPayload);
+          },
+          onError: (err) => {
+            console.error(
+              "[Components:CreateMessageForm] Form level handling caught creation error:",
+              err,
+            );
+          },
         },
-        onError: (err) => {
-          console.error(
-            "[Component:CreateMessageForm] Form level handling caught creation error:",
-            err,
-          );
-        },
-      },
-    );
+      );
+    } else {
+      editMessageMutate({
+        messageId: editingMessage.id,
+        rawMessageText: message,
+        targetPublicKey,
+      });
+
+      setEditingMessage(null);
+      setMessage("");
+    }
   };
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -160,22 +200,51 @@ export function CreateMessageForm({
         suppressHydrationWarning={true}
         className="flex-1 py-2 px-3 resize-none min-h-[40px] max-h-[120px] bg-transparent text-foreground text-xs placeholder:text-muted-foreground focus:outline-none disabled:opacity-50 font-normal leading-relaxed custom-scrollbar"
       />
-      <button
-        type="submit"
-        disabled={isPending || !message.trim()}
-        className="h-10 w-10 flex items-center justify-center bg-primary text-primary-foreground rounded-lg hover:opacity-95 active:scale-[0.98] transition-all disabled:opacity-40 disabled:cursor-not-allowed disabled:scale-100 shrink-0"
-        aria-label="Dispatch secure frame payload"
-      >
-        {isPending ? (
-          <Loader2 className="w-4 h-4 animate-spin" />
-        ) : (
-          <SendHorizontal className="w-4 h-4" />
+
+      {/* Action Control Zone Container */}
+      <div className="flex items-center gap-2 shrink-0">
+        {/* 1. Dynamic Context Indicator Badge */}
+        {editingMessage && (
+          <span className="text-[10px] bg-primary/10 text-primary px-2.5 py-1.5 rounded-lg font-mono font-medium select-none self-center">
+            EDIT MODE
+          </span>
         )}
-      </button>
+
+        {/* 2. Defensive Cancel Button */}
+        {editingMessage && (
+          <button
+            type="button"
+            onClick={() => setEditingMessage(null)}
+            disabled={isEditPending}
+            className="h-10 px-3 flex items-center justify-center border border-border text-muted-foreground rounded-lg hover:bg-accent hover:text-foreground active:scale-[0.98] transition-all text-xs font-medium disabled:opacity-50"
+          >
+            Cancel
+          </button>
+        )}
+
+        {/* 3. Primary Dispatch/Save Action Button */}
+        <button
+          type="submit"
+          disabled={isEditPending || !message.trim()}
+          className="h-10 w-10 flex items-center justify-center bg-primary text-primary-foreground rounded-lg hover:opacity-95 active:scale-[0.98] transition-all disabled:opacity-40 disabled:cursor-not-allowed disabled:scale-100"
+          aria-label="Dispatch secure frame payload"
+        >
+          {isPending ? (
+            <Loader2 className="w-4 h-4 animate-spin" />
+          ) : (
+            <SendHorizontal className="w-4 h-4" />
+          )}
+        </button>
+      </div>
 
       {error && (
         <p className="text-xs text-destructive pl-2 font-medium absolute m-auto h-full">
           {error}
+        </p>
+      )}
+      {editError && (
+        <p className="text-xs text-destructive pl-2 font-medium absolute m-auto h-full">
+          {editError}
         </p>
       )}
     </form>

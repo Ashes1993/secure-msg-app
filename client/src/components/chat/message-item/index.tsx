@@ -2,10 +2,11 @@
 
 import { useState, useEffect } from "react";
 import { decryptMessage } from "@/lib/crypto";
-import { useAuthStore } from "@/stores/useAuthStore";
-import { MessageEntity } from "@/types/chat";
-import { Check, CheckCheck, CornerUpLeft, Pencil, Trash2 } from "lucide-react";
 import { useDeleteMessage } from "@/hooks/useDeleteMessage";
+import { MessageEntity } from "@/types/chat";
+import { useAuthStore } from "@/stores/useAuthStore";
+import { useChatStore } from "@/stores/useChatStore";
+import { Check, CheckCheck, CornerUpLeft, Pencil, Trash2 } from "lucide-react";
 import { DeleteFlowModal } from "./DeleteFlowModal";
 
 interface MessageItemProps {
@@ -76,6 +77,11 @@ export function MessageItem({
   onToggleMenu,
 }: MessageItemProps) {
   const privateKey = useAuthStore((state) => state.privateKey);
+  const editingMesssage = useChatStore((state) => state.editingMessage);
+  const setEditingMessage = useChatStore((state) => state.setEditingMessage);
+
+  const isCurrentlyEditing = editingMesssage?.id === message.id;
+
   const [content, setContent] = useState<string>("Decrypting data block...");
   const [isError, setIsError] = useState<boolean>(false);
 
@@ -147,6 +153,14 @@ export function MessageItem({
     );
   };
 
+  const handleEditClick = () => {
+    onToggleMenu();
+    setEditingMessage({
+      id: message.id,
+      decryptedText: content,
+    });
+  };
+
   return (
     <div
       className={`flex w-full group ${isMe ? "justify-end" : "justify-start"}`}
@@ -160,6 +174,10 @@ export function MessageItem({
           isMe
             ? "bg-primary text-foreground rounded-br-sm"
             : "bg-muted-foreground/[0.05] border border-border text-foreground rounded-bl-sm"
+        } ${
+          isCurrentlyEditing
+            ? "ring-2 ring-primary/50 ring-offset-2 ring-offset-background border-primary/40 scale-[1.01]"
+            : ""
         }`}
       >
         <p
@@ -176,7 +194,12 @@ export function MessageItem({
               : "justify-start text-muted-foreground"
           }`}
         >
-          <span>{formatMessageTimestamp(message.createdAt)}</span>
+          <div className="flex items-center gap-1">
+            {message.isEdited && (
+              <span className="italic opacity-70 select-none">(edited)</span>
+            )}
+            <span>{formatMessageTimestamp(message.createdAt)}</span>
+          </div>
           {isMe && (
             <span className="ml-1 flex items-center">
               {message.isRead ? (
@@ -194,6 +217,8 @@ export function MessageItem({
             className={`absolute top-0 z-40 mx-2 w-[150px] flex flex-col items-stretch p-1.5 border border-border rounded-xl shadow-lg bg-popover text-popover-foreground animate-popover ${isMe ? "right-full" : "left-full"}`}
           >
             {MENU_OPTIONS.map((option) => {
+              if (option.title === "Edit" && !isMe) return null;
+
               const Icon = option.icon;
               const isDestructive = option.variant === "destructive";
 
@@ -204,7 +229,10 @@ export function MessageItem({
                     if (option.title === "Delete") {
                       handleInitialDeleteClick();
                     }
-                    // Placeholder: Future hooks for reply / edit
+
+                    if (option.title === "Edit") {
+                      handleEditClick();
+                    }
                   }}
                   className={`flex items-center gap-2.5 px-3 py-2 text-left text-xs font-medium rounded-lg transition-colors ${isDestructive ? "text-destructive hover:bg-destructive/10" : "text-foreground/90 hover:bg-accent hover:text-foreground"}`}
                 >

@@ -4,13 +4,20 @@ interface ChatState {
   typingUsers: string[];
   setTypingUser: (userId: string) => void;
   removeTypingUser: (userId: string) => void;
+
   onlineUsers: string[];
   setUserOnlineStatus: (userId: string, isOnline: boolean) => void;
+
+  editingMessage: { id: string; decryptedText: string } | null;
+  setEditingMessage: (
+    payload: { id: string; decryptedText: string } | null,
+  ) => void;
 }
 
 export const useChatStore = create<ChatState>()((set) => ({
   typingUsers: [],
   onlineUsers: [],
+  editingMessage: null,
 
   setTypingUser: (userId) =>
     set((state) => {
@@ -36,4 +43,6 @@ export const useChatStore = create<ChatState>()((set) => ({
         return { onlineUsers: state.onlineUsers.filter((id) => id !== userId) };
       }
     }),
+
+  setEditingMessage: (payload) => set({ editingMessage: payload }),
 }));
