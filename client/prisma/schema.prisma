@@ -28,6 +28,7 @@ enum RoomType {
 model Room {
   id  String  @id @default(uuid())
   type RoomType @default(DM)
+  deletedFor  String[]  @default([])
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 
@@ -65,5 +66,5 @@ model Message {
   updatedAt DateTime  @default(now()) @updatedAt
 
   user  User  @relation(fields: [senderId], references: [id])
-  room  Room  @relation(fields:[roomId], references: [id])
+  room  Room  @relation(fields: [roomId], references: [id], onDelete: Cascade)
 }

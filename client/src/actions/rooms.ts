@@ -52,17 +52,11 @@ export async function createRoom(
         id: true,
         type: true,
         updatedAt: true,
+        deletedFor: true,
         roomParticipants: participantSelect,
         messages: {
-          where: {
-            NOT: {
-              deletedFor: {
-                has: currentUserId,
-              },
-            },
-          },
           orderBy: { createdAt: "desc" },
-          take: 1,
+          take: 20,
           select: {
             encryptedContent: true,
             createdAt: true,
@@ -70,20 +64,37 @@ export async function createRoom(
             iv: true,
             senderEncryptedKey: true,
             recipientEncryptedKey: true,
+            deletedFor: true,
           },
         },
       },
     });
 
     if (existingRoom) {
-      const callerParticipant = existingRoom.roomParticipants.find(
+      if (existingRoom.deletedFor.includes(currentUserId)) {
+        await prisma.room.update({
+          where: { id: existingRoom.id },
+          data: {
+            deletedFor: {
+              set: existingRoom.deletedFor.filter((id) => id !== currentUserId),
+            },
+          },
+        });
+      }
+
+      const senderParticipant = existingRoom.roomParticipants.find(
         (p) => p.user.id === currentUserId,
       )?.user;
       const targetParticipant = existingRoom.roomParticipants.find(
         (p) => p.user.id === targetUserId,
       )?.user;
 
-      const latestMessage = existingRoom.messages[0];
+      const senderLatestMessage = existingRoom.messages.find(
+        (m) => !m.deletedFor.includes(currentUserId),
+      );
+      const targetLatestMessage = existingRoom.messages.find(
+        (m) => !m.deletedFor.includes(targetUserId),
+      );
 
       const userRoom: RoomEntity = {
         id: existingRoom.id,
@@ -93,14 +104,15 @@ export async function createRoom(
         targetUserUsername: targetParticipant?.username || "Unknown User",
         targetUserPublicKey: targetParticipant?.publicKey || "null",
         lastMessage:
-          latestMessage?.encryptedContent || "No messages yet. Say hello!",
-        lastMessageSenderId: latestMessage?.senderId || null,
-        lastMessageIv: latestMessage?.iv || null,
+          senderLatestMessage?.encryptedContent ||
+          "No messages yet. Say hello!",
+        lastMessageSenderId: senderLatestMessage?.senderId || null,
+        lastMessageIv: senderLatestMessage?.iv || null,
         lastMessageSenderEncryptedKey:
-          latestMessage?.senderEncryptedKey || null,
+          senderLatestMessage?.senderEncryptedKey || null,
         lastMessageRecipientEncryptedKey:
-          latestMessage?.recipientEncryptedKey || null,
-        lastMessageAt: latestMessage?.createdAt || null,
+          senderLatestMessage?.recipientEncryptedKey || null,
+        lastMessageAt: senderLatestMessage?.createdAt || null,
         currentUserId,
       };
 
@@ -108,18 +120,19 @@ export async function createRoom(
         id: existingRoom.id,
         type: existingRoom.type,
         updatedAt: existingRoom.updatedAt,
-        targetUserId: callerParticipant?.id || currentUserId,
-        targetUserUsername: callerParticipant?.username || "Unknown User",
-        targetUserPublicKey: callerParticipant?.publicKey || "null",
+        targetUserId: senderParticipant?.id || currentUserId,
+        targetUserUsername: senderParticipant?.username || "Unknown User",
+        targetUserPublicKey: senderParticipant?.publicKey || "null",
         lastMessage:
-          latestMessage?.encryptedContent || "No messages yet. Say hello!",
-        lastMessageSenderId: latestMessage?.senderId || null,
-        lastMessageIv: latestMessage?.iv || null,
+          targetLatestMessage?.encryptedContent ||
+          "No messages yet. Say hello!",
+        lastMessageSenderId: targetLatestMessage?.senderId || null,
+        lastMessageIv: targetLatestMessage?.iv || null,
         lastMessageSenderEncryptedKey:
-          latestMessage?.senderEncryptedKey || null,
+          targetLatestMessage?.senderEncryptedKey || null,
         lastMessageRecipientEncryptedKey:
-          latestMessage?.recipientEncryptedKey || null,
-        lastMessageAt: latestMessage?.createdAt || null,
+          targetLatestMessage?.recipientEncryptedKey || null,
+        lastMessageAt: targetLatestMessage?.createdAt || null,
         currentUserId: targetUserId,
       };
 
@@ -221,6 +234,11 @@ export async function getRooms(): Promise<ActionResponse<RoomEntity[] | null>> {
         roomParticipants: {
           some: {
             userId: currentUserId,
+          },
+        },
+        NOT: {
+          deletedFor: {
+            has: currentUserId,
           },
         },
       },
@@ -384,6 +402,120 @@ export async function markAsRead(
     return {
       success: false,
       error: "Unable to update the database. Please try again shortly.",
+      data: null,
+    };
+  }
+}
+
+export async function deleteRoom(
+  roomId: string,
+): Promise<ActionResponse<null>> {
+  const session = await auth();
+  const currentUserId = session?.user?.id;
+
+  if (!currentUserId)
+    return {
+      success: false,
+      error: "Authentication session expired. Please sign in again.",
+      data: null,
+    };
+
+  if (!roomId) {
+    return {
+      success: false,
+      error:
+        "No room ID is received to proceed. Please refresh the page and try again.",
+      data: null,
+    };
+  }
+
+  try {
+    const chosenRoom = await prisma.room.findFirst({
+      where: {
+        id: roomId,
+        roomParticipants: {
+          some: {
+            userId: currentUserId,
+          },
+        },
+      },
+      select: {
+        deletedFor: true,
+        roomParticipants: {
+          select: {
+            userId: true,
+          },
+        },
+      },
+    });
+
+    if (!chosenRoom)
+      return {
+        success: false,
+        error:
+          "No room with this ID exists. Please refresh the page and try again shortly.",
+        data: null,
+      };
+
+    if (chosenRoom.deletedFor.includes(currentUserId))
+      return { success: true, error: null, data: null };
+
+    const otherParticipants = chosenRoom.roomParticipants.filter(
+      (participant) => participant.userId !== currentUserId,
+    );
+    const isAllOthersDeleted =
+      otherParticipants.length > 0 &&
+      otherParticipants.every((participant) =>
+        chosenRoom.deletedFor.includes(participant.userId),
+      );
+
+    if (isAllOthersDeleted) {
+      await prisma.room.delete({
+        where: {
+          id: roomId,
+        },
+      });
+
+      return { success: true, error: null, data: null };
+    }
+
+    await prisma.$transaction([
+      prisma.room.update({
+        where: {
+          id: roomId,
+        },
+        data: {
+          deletedFor: {
+            push: currentUserId,
+          },
+        },
+      }),
+      prisma.message.updateMany({
+        where: {
+          roomId,
+          NOT: {
+            deletedFor: {
+              has: currentUserId,
+            },
+          },
+        },
+        data: {
+          deletedFor: {
+            push: currentUserId,
+          },
+        },
+      }),
+    ]);
+
+    return { success: true, error: null, data: null };
+  } catch (err) {
+    console.error(
+      "[ServerAction:deleteRoom] Database exception encountered when deleting a room:",
+      err,
+    );
+    return {
+      success: false,
+      error: "Unable to delete the room. Please try again shortly.",
       data: null,
     };
   }

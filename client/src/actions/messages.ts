@@ -85,7 +85,7 @@ export async function createMessage(
 
       prisma.room.update({
         where: { id: roomId },
-        data: { updatedAt: new Date() },
+        data: { deletedFor: [], updatedAt: new Date() },
       }),
     ]);
 
