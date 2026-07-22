@@ -74,6 +74,16 @@ export default function RoomList() {
       if (wsEvent.type === "ENCRYPTED_MESSAGE") {
         const { roomId, message } = wsEvent.payload;
 
+        const currentRooms = queryClient.getQueryData<RoomEntity[] | null>([
+          "rooms",
+        ]);
+        const roomExists = currentRooms?.some((r) => r.id === roomId);
+
+        if (!roomExists) {
+          queryClient.invalidateQueries({ queryKey: ["rooms"] });
+          return;
+        }
+
         (async () => {
           const {
             encryptedContent,

@@ -1,13 +1,15 @@
 "use client";
 
 import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useQueryClient, InfiniteData } from "@tanstack/react-query";
+import { useWebSocketContext } from "@/providers/WebSocketProvider";
+import { useMarkAsRead } from "@/hooks/useMarkAsRead";
 import { useMessages } from "@/hooks/useMessages";
 import { useRooms } from "@/hooks/useRooms";
-import { useQueryClient, InfiniteData } from "@tanstack/react-query";
-import { useChatStore } from "@/stores/useChatStore";
-import { useWebSocketContext } from "@/providers/WebSocketProvider";
 import { MessageEntity, WebSocketEvent } from "@/types/chat";
-import { useMarkAsRead } from "@/hooks/useMarkAsRead";
+import { useChatStore } from "@/stores/useChatStore";
+import { Loader2 } from "lucide-react";
 import { CreateMessageForm } from "./CreateMessageForm";
 import { ChatHeader } from "./ChatHeader";
 import ErrorState from "../ui/ErrorState";
@@ -22,6 +24,8 @@ export default function ChatContainer({
   roomId,
   currentUserId,
 }: ChatContainerProps) {
+  const router = useRouter();
+
   const {
     messages,
     isLoading,
@@ -51,9 +55,16 @@ export default function ChatContainer({
 
   const { markRoomAsRead } = useMarkAsRead(roomId, targetId);
 
+  // Auto-redirect to main chat page when there is no active room
+  useEffect(() => {
+    if (!isRoomsLoading && !activeRoom) {
+      router.replace("/chat");
+    }
+  }, [isRoomsLoading, activeRoom, router]);
+
   // Subscribe to room when ChatContainer mounts
   useEffect(() => {
-    if (!isConnected) return;
+    if (!isConnected || !targetId) return;
 
     emitEvent({
       type: "SUBSCRIBE",
@@ -159,6 +170,14 @@ export default function ChatContainer({
     subscribeToEvents,
   ]);
 
+  if (!isRoomsLoading && !activeRoom) {
+    return (
+      <div className="w-full h-screen md:h-full flex items-center justify-center bg-background text-muted-foreground">
+        <Loader2 className="w-6 h-6 animate-spin text-muted-foreground/60" />
+      </div>
+    );
+  }
+
   if (!targetPublicKey && !isLoading && !isRoomsLoading) {
     return (
       <ErrorState
@@ -177,6 +196,7 @@ export default function ChatContainer({
       <ChatHeader
         targetUserUsername={activeRoom?.targetUserUsername}
         isConnected={isTargetOnline}
+        roomId={activeRoom?.id}
       />
 
       {/* Messages section */}
