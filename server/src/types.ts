@@ -1,3 +1,17 @@
+export interface MessageEntity {
+  id: string;
+  senderId: string;
+  encryptedContent: string;
+  iv: string;
+  senderEncryptedKey: string;
+  recipientEncryptedKey: string;
+  isEdited: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+  isRead?: boolean;
+  replyToId?: string | null;
+}
+
 export type WebSocketEvent =
   | {
       type: "SUBSCRIBE";
@@ -19,17 +33,7 @@ export type WebSocketEvent =
       payload: {
         recipientId?: string;
         roomId: string;
-        message: {
-          id: string;
-          senderId: string;
-          encryptedContent: string;
-          iv: string;
-          senderEncryptedKey: string;
-          recipientEncryptedKey: string;
-          isEdited: boolean;
-          createdAt: Date;
-          updatedAt: Date;
-        };
+        message: MessageEntity;
       };
     }
   | {
@@ -79,16 +83,6 @@ export type WebSocketEvent =
       payload: {
         recipientId?: string;
         roomId: string;
-        message: {
-          id: string;
-          senderId: string;
-          encryptedContent: string;
-          iv: string;
-          senderEncryptedKey: string;
-          recipientEncryptedKey: string;
-          isEdited: boolean;
-          createdAt: Date;
-          updatedAt: Date;
-        };
+        message: MessageEntity;
       };
     };
