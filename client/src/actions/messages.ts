@@ -11,6 +11,7 @@ export async function createMessage(
   iv: string,
   senderEncryptedKey: string,
   recipientEncryptedKey: string,
+  replyToId?: string | null,
 ): Promise<ActionResponse<MessageEntity | null>> {
   const session = await auth();
   const currentUserId = session?.user?.id;
@@ -36,6 +37,8 @@ export async function createMessage(
     };
   }
 
+  const sanitizedReplyToId = replyToId?.trim() || null;
+
   try {
     const roomMembership = await prisma.room.findUnique({
       where: {
@@ -60,6 +63,26 @@ export async function createMessage(
       };
     }
 
+    // Validate that the parent message exists in THIS room (if replying)
+    if (sanitizedReplyToId) {
+      const parentMessage = await prisma.message.findFirst({
+        where: {
+          id: sanitizedReplyToId,
+          roomId: roomId,
+        },
+        select: { id: true },
+      });
+
+      if (!parentMessage) {
+        return {
+          success: false,
+          error:
+            "Invalid reply target: The message you are replying to does not exist in this room.",
+          data: null,
+        };
+      }
+    }
+
     const [newMessage] = await prisma.$transaction([
       prisma.message.create({
         data: {
@@ -69,6 +92,7 @@ export async function createMessage(
           iv,
           senderEncryptedKey,
           recipientEncryptedKey,
+          replyToId: sanitizedReplyToId,
         },
         select: {
           id: true,
@@ -80,6 +104,7 @@ export async function createMessage(
           isEdited: true,
           createdAt: true,
           updatedAt: true,
+          replyToId: true,
         },
       }),
 

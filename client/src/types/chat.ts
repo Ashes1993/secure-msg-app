@@ -9,6 +9,7 @@ export interface MessageEntity {
   createdAt: Date;
   updatedAt: Date;
   isRead?: boolean;
+  replyToId?: string | null;
 }
 
 export interface RoomEntity {
