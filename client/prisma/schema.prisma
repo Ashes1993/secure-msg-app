@@ -61,9 +61,13 @@ model Message {
   recipientEncryptedKey String
   isEdited  Boolean @default(false)
   deletedFor String[] @default([])
-
   createdAt DateTime  @default(now())
   updatedAt DateTime  @default(now()) @updatedAt
+
+  // Self-relation
+  replyToId String?
+  replyTo Message?  @relation("MessageReplies", fields: [replyToId], references: [id], onDelete: SetNull)
+  replies Message[] @relation("MessageReplies")
 
   user  User  @relation(fields: [senderId], references: [id])
   room  Room  @relation(fields: [roomId], references: [id], onDelete: Cascade)
