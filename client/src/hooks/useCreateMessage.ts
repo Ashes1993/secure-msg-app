@@ -9,6 +9,7 @@ interface CreateMessageVariables {
   roomId: string;
   messageText: string;
   targetPublicKey: string;
+  replyToId?: string | null;
 }
 
 export function useCreateMessage() {
@@ -20,6 +21,7 @@ export function useCreateMessage() {
       roomId,
       messageText,
       targetPublicKey,
+      replyToId,
     }: CreateMessageVariables) => {
       if (!currentUserPublicKey) {
         throw new Error("Public key is missing. Please sign in again.");
@@ -42,6 +44,7 @@ export function useCreateMessage() {
         iv,
         senderEncryptedKey,
         recipientEncryptedKey,
+        replyToId,
       );
 
       if (!response.success) {

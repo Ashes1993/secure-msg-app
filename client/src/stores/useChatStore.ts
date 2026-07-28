@@ -1,5 +1,11 @@
 import { create } from "zustand";
 
+export interface ReplyingToMessage {
+  id: string;
+  senderId: string;
+  decryptedText: string;
+}
+
 interface ChatState {
   typingUsers: string[];
   setTypingUser: (userId: string) => void;
@@ -12,12 +18,16 @@ interface ChatState {
   setEditingMessage: (
     payload: { id: string; decryptedText: string } | null,
   ) => void;
+
+  replyingToMessage: ReplyingToMessage | null;
+  setReplyingToMessage: (msg: ReplyingToMessage | null) => void;
 }
 
 export const useChatStore = create<ChatState>()((set) => ({
   typingUsers: [],
   onlineUsers: [],
   editingMessage: null,
+  replyingToMessage: null,
 
   setTypingUser: (userId) =>
     set((state) => {
@@ -45,4 +55,6 @@ export const useChatStore = create<ChatState>()((set) => ({
     }),
 
   setEditingMessage: (payload) => set({ editingMessage: payload }),
+
+  setReplyingToMessage: (msg) => set({ replyingToMessage: msg }),
 }));

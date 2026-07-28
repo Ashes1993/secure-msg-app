@@ -5,7 +5,7 @@ import { useCreateMessage } from "@/hooks/useCreateMessage";
 import { useEditMessage } from "@/hooks/useEditMessage";
 import { WebSocketEvent } from "@/types/chat";
 import { useChatStore } from "@/stores/useChatStore";
-import { SendHorizontal, Loader2 } from "lucide-react";
+import { SendHorizontal, Loader2, X, CornerUpLeft } from "lucide-react";
 
 interface CreateMessageFormProps {
   roomId: string;
@@ -34,6 +34,11 @@ export function CreateMessageForm({
 
   const editingMessage = useChatStore((state) => state.editingMessage);
   const setEditingMessage = useChatStore((state) => state.setEditingMessage);
+  const replyingToMessage = useChatStore((state) => state.replyingToMessage);
+  const setReplyingToMessage = useChatStore(
+    (state) => state.setReplyingToMessage,
+  );
+
   const [prevEditingId, setPrevEditingId] = useState<string | null>(null);
   const currentEditingId = editingMessage?.id ?? null;
 
@@ -80,10 +85,12 @@ export function CreateMessageForm({
           roomId,
           messageText: message.trim(),
           targetPublicKey,
+          replyToId: replyingToMessage?.id ?? null,
         },
         {
           onSuccess: (newMessageData) => {
             setMessage("");
+            setReplyingToMessage(null);
             if (textareaRef.current) textareaRef.current.style.height = "auto";
 
             if (typingTimeoutRef.current)
@@ -119,6 +126,7 @@ export function CreateMessageForm({
                   isEdited: newMessageData.isEdited,
                   createdAt: newMessageData.createdAt,
                   updatedAt: newMessageData.updatedAt,
+                  replyToId: newMessageData.replyToId,
                 },
               },
             };
@@ -153,88 +161,122 @@ export function CreateMessageForm({
     if (event.key === "Enter" && !event.shiftKey) {
       event.preventDefault();
       event.currentTarget.form?.requestSubmit();
+    } else if (event.key === "Escape") {
+      if (editingMessage) setEditingMessage(null);
+      if (replyingToMessage) setReplyingToMessage(null);
     }
   };
 
   return (
     <form
       onSubmit={sendMessage}
-      className="w-full flex items-end gap-2.5 bg-muted-foreground/[0.03] border border-border rounded-xl p-2 transition-micro focus-within:border-primary/40 focus-within:ring-1 focus-within:ring-primary/20"
+      className="w-full flex flex-col gap-2.5 bg-muted-foreground/[0.03] border border-border rounded-xl p-2 transition-micro focus-within:border-primary/40 focus-within:ring-1 focus-within:ring-primary/20"
     >
-      <textarea
-        ref={textareaRef}
-        rows={1}
-        name="message"
-        id="message"
-        value={message}
-        onKeyDown={handleKeyDown}
-        onChange={(event) => {
-          setMessage(event.target.value);
-
-          if (!isTypingRef.current && event.target.value.trim().length > 0) {
-            isTypingRef.current = true;
-            emitEvent({
-              type: "TYPING_STATUS",
-              payload: {
-                roomId,
-                userId: currentUserId,
-                isTyping: true,
-              },
-            });
-          }
-
-          if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
-
-          typingTimeoutRef.current = setTimeout(() => {
-            if (isTypingRef.current) {
-              isTypingRef.current = false;
-              emitEvent({
-                type: "TYPING_STATUS",
-                payload: { roomId, userId: currentUserId, isTyping: false },
-              });
-            }
-          }, 2000);
-        }}
-        placeholder="Type a secure message..."
-        disabled={Boolean(isPending || isDisabled)}
-        suppressHydrationWarning={true}
-        className="flex-1 py-2 px-3 resize-none min-h-[40px] max-h-[120px] bg-transparent text-foreground text-xs placeholder:text-muted-foreground focus:outline-none disabled:opacity-50 font-normal leading-relaxed custom-scrollbar"
-      />
-
-      {/* Action Control Zone Container */}
-      <div className="flex items-center gap-2 shrink-0">
-        {/* 1. Dynamic Context Indicator Badge */}
-        {editingMessage && (
-          <span className="text-[10px] bg-primary/10 text-primary px-2.5 py-1.5 rounded-lg font-mono font-medium select-none self-center">
-            EDIT MODE
-          </span>
-        )}
-
-        {/* 2. Defensive Cancel Button */}
-        {editingMessage && (
+      {/* If replying to a message */}
+      {replyingToMessage && !editingMessage && (
+        <div className="w-full flex items-center justify-between gap-2 px-3 py-1.5 mb-1 bg-accent/40 border-l-2 border-primary rounded-r-lg text-xs">
+          <div className="flex items-center gap-2 overflow-hidden">
+            <CornerUpLeft className="w-3.5 h-3.5 shrink-0 text-primary" />
+            <div className="truncate">
+              <span className="font-semibold text-primary mr-1.5">
+                {replyingToMessage.senderId === currentUserId
+                  ? "Replying to yourself"
+                  : "Replying to message"}
+              </span>
+              <span className="text-muted-foreground truncate">
+                {replyingToMessage.decryptedText}
+              </span>
+            </div>
+          </div>
           <button
             type="button"
-            onClick={() => setEditingMessage(null)}
-            disabled={isEditPending}
-            className="h-10 px-3 flex items-center justify-center border border-border text-muted-foreground rounded-lg hover:bg-accent hover:text-foreground active:scale-[0.98] transition-all text-xs font-medium disabled:opacity-50"
+            onClick={() => setReplyingToMessage(null)}
+            className="p-1 hover:bg-accent rounded-md text-muted-foreground hover:text-foreground transition-colors"
+            aria-label="Cancel reply"
           >
-            Cancel
+            <X className="w-3.5 h-3.5" />
           </button>
-        )}
+        </div>
+      )}
 
-        {/* 3. Primary Dispatch/Save Action Button */}
-        <button
-          type="submit"
-          disabled={isEditPending || !message.trim()}
-          className="h-10 w-10 flex items-center justify-center bg-primary text-primary-foreground rounded-lg hover:opacity-95 active:scale-[0.98] transition-all disabled:opacity-40 disabled:cursor-not-allowed disabled:scale-100"
-          aria-label="Dispatch secure frame payload"
-        >
-          {isPending ? (
-            <Loader2 className="w-4 h-4 animate-spin" />
-          ) : (
-            <SendHorizontal className="w-4 h-4" />
+      <div className="flex justify-center items-center">
+        {/* Text area to insert or edit messages */}
+        <textarea
+          ref={textareaRef}
+          rows={1}
+          name="message"
+          id="message"
+          value={message}
+          onKeyDown={handleKeyDown}
+          onChange={(event) => {
+            setMessage(event.target.value);
+
+            if (!isTypingRef.current && event.target.value.trim().length > 0) {
+              isTypingRef.current = true;
+              emitEvent({
+                type: "TYPING_STATUS",
+                payload: {
+                  roomId,
+                  userId: currentUserId,
+                  isTyping: true,
+                },
+              });
+            }
+
+            if (typingTimeoutRef.current)
+              clearTimeout(typingTimeoutRef.current);
+
+            typingTimeoutRef.current = setTimeout(() => {
+              if (isTypingRef.current) {
+                isTypingRef.current = false;
+                emitEvent({
+                  type: "TYPING_STATUS",
+                  payload: { roomId, userId: currentUserId, isTyping: false },
+                });
+              }
+            }, 2000);
+          }}
+          placeholder="Type a secure message..."
+          disabled={Boolean(isPending || isDisabled)}
+          suppressHydrationWarning={true}
+          className="flex-1 py-2 px-3 resize-none min-h-[40px] max-h-[120px] bg-transparent text-foreground text-xs placeholder:text-muted-foreground focus:outline-none disabled:opacity-50 font-normal leading-relaxed custom-scrollbar"
+        />
+
+        {/* Action Control Zone Container */}
+        <div className="flex items-center gap-2 shrink-0">
+          {/* 1. Dynamic Context Indicator Badge */}
+          {editingMessage && (
+            <span className="text-[10px] bg-primary/10 text-primary px-2.5 py-1.5 rounded-lg font-mono font-medium select-none self-center">
+              EDIT MODE
+            </span>
           )}
-        </button>
+
+          {/* 2. Defensive Cancel Button */}
+          {editingMessage && (
+            <button
+              type="button"
+              onClick={() => setEditingMessage(null)}
+              disabled={isEditPending}
+              className="h-10 px-3 flex items-center justify-center border border-border text-muted-foreground rounded-lg hover:bg-accent hover:text-foreground active:scale-[0.98] transition-all text-xs font-medium disabled:opacity-50"
+            >
+              Cancel
+            </button>
+          )}
+
+          {/* 3. Primary Dispatch/Save Action Button */}
+          <button
+            type="submit"
+            disabled={isEditPending || !message.trim()}
+            className="h-10 w-10 flex items-center justify-center bg-primary text-primary-foreground rounded-lg hover:opacity-95 active:scale-[0.98] transition-all disabled:opacity-40 disabled:cursor-not-allowed disabled:scale-100"
+            aria-label="Dispatch secure frame payload"
+          >
+            {isPending ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <SendHorizontal className="w-4 h-4" />
+            )}
+          </button>
+        </div>
       </div>
 
       {error && (

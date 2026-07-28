@@ -194,6 +194,7 @@ export async function getMessages(
           isEdited: true,
           createdAt: true,
           updatedAt: true,
+          replyToId: true,
         },
       }),
     ]);

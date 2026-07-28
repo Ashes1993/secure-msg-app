@@ -8,6 +8,7 @@ import { useAuthStore } from "@/stores/useAuthStore";
 import { useChatStore } from "@/stores/useChatStore";
 import { Check, CheckCheck, CornerUpLeft, Pencil, Trash2 } from "lucide-react";
 import { DeleteFlowModal } from "./DeleteFlowModal";
+import { QuotedMessagePreview } from "./QuotedMessagePreview";
 
 interface MessageItemProps {
   message: MessageEntity;
@@ -79,6 +80,9 @@ export function MessageItem({
   const privateKey = useAuthStore((state) => state.privateKey);
   const editingMesssage = useChatStore((state) => state.editingMessage);
   const setEditingMessage = useChatStore((state) => state.setEditingMessage);
+  const setReplyingToMessage = useChatStore(
+    (state) => state.setReplyingToMessage,
+  );
 
   const isCurrentlyEditing = editingMesssage?.id === message.id;
 
@@ -180,11 +184,23 @@ export function MessageItem({
             : ""
         }`}
       >
-        <p
-          className={`leading-relaxed font-normal selection:bg-background/20 ${isError ? "text-destructive font-mono text-xs" : ""}`}
-        >
-          {content}
-        </p>
+        <div id={`message-${message.id}`}>
+          {/* If this message is a reply, render quoted snippet */}
+          {message.replyToId && (
+            <QuotedMessagePreview
+              replyToId={message.replyToId}
+              roomId={roomId}
+              currentUserId={currentUserId}
+              isMe={isMe}
+            />
+          )}
+
+          <p
+            className={`leading-relaxed font-normal selection:bg-background/20 ${isError ? "text-destructive font-mono text-xs" : ""}`}
+          >
+            {content}
+          </p>
+        </div>
 
         {/* Metadata Timestamp */}
         <div
@@ -226,6 +242,15 @@ export function MessageItem({
                 <button
                   key={option.title}
                   onClick={() => {
+                    if (option.title === "Reply") {
+                      onToggleMenu();
+                      setReplyingToMessage({
+                        id: message.id,
+                        senderId: message.senderId,
+                        decryptedText: content,
+                      });
+                    }
+
                     if (option.title === "Delete") {
                       handleInitialDeleteClick();
                     }
