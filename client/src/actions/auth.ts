@@ -2,9 +2,15 @@
 
 import bcrypt from "bcryptjs";
 import prisma from "@/lib/prisma";
-import { signIn, signOut } from "@/auth";
+import { auth, signIn, signOut } from "@/auth";
 import { AuthError } from "next-auth";
 import { ActionResponse } from "@/types/actions";
+import { UserProfileEntity } from "@/types/user";
+import { revalidatePath } from "next/cache";
+import {
+  updateProfileSchema,
+  UpdateProfileInput,
+} from "@/lib/validations/profile";
 
 type FormData = {
   username: string;
@@ -103,4 +109,111 @@ export async function logOut() {
   await signOut({
     redirectTo: "/login",
   });
+}
+
+export async function getUserProfile(): Promise<
+  ActionResponse<UserProfileEntity | null>
+> {
+  const session = await auth();
+  const currentUserId = session?.user?.id;
+
+  if (!currentUserId)
+    return {
+      success: false,
+      error: "Authentication session expired. Please sign in again.",
+      data: null,
+    };
+
+  try {
+    const profileData = await prisma.user.findUnique({
+      where: { id: currentUserId },
+      select: {
+        username: true,
+        displayName: true,
+        bio: true,
+        avatarUrl: true,
+        createdAt: true,
+      },
+    });
+    if (!profileData)
+      return {
+        success: false,
+        error: "User Account not found. Try to sign in again.",
+        data: null,
+      };
+    return {
+      success: true,
+      error: null,
+      data: profileData,
+    };
+  } catch (err) {
+    console.error(
+      "[Actions:getUserProfile] Database error during retrieving user profile information:",
+      err,
+    );
+    return {
+      success: false,
+      error:
+        "Unable to retrieve profile information due to a system failure. Please try again shortly.",
+      data: null,
+    };
+  }
+}
+
+export async function updateUserProfile(
+  input: UpdateProfileInput,
+): Promise<ActionResponse<UserProfileEntity | null>> {
+  const session = await auth();
+  const currentUserId = session?.user?.id;
+
+  if (!currentUserId)
+    return {
+      success: false,
+      error: "Authentication session expired. Please sign in again.",
+      data: null,
+    };
+
+  const validationResult = updateProfileSchema.safeParse(input);
+
+  if (!validationResult.success) {
+    const firstErrorMessage =
+      validationResult.error.issues[0]?.message ||
+      "Invalid profile data provided.";
+    return {
+      success: false,
+      error: firstErrorMessage,
+      data: null,
+    };
+  }
+
+  try {
+    const updatedUserProfile = await prisma.user.update({
+      where: {
+        id: currentUserId,
+      },
+      data: validationResult.data,
+      select: {
+        username: true,
+        displayName: true,
+        bio: true,
+        avatarUrl: true,
+        createdAt: true,
+      },
+    });
+
+    revalidatePath("/profile");
+
+    return {
+      success: true,
+      error: null,
+      data: updatedUserProfile,
+    };
+  } catch (err) {
+    console.error(err);
+    return {
+      success: false,
+      error: "Unable to update profile settings. Please try again shortly.",
+      data: null,
+    };
+  }
 }
