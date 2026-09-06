@@ -117,7 +117,7 @@ export async function createMessage(
     return { success: true, error: null, data: newMessage };
   } catch (err) {
     console.error(
-      "[Actions:createMessage] Database error durinng secure message allocation execution",
+      "[Actions:createMessage] Database error during secure message allocation execution",
       err,
     );
     return {
